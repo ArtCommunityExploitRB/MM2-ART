@@ -1,5 +1,4 @@
--- ArtMM2 Hub | PC Version
--- Запуск на ПК – окно сразу видно, без плавающих кнопок.
+-- ArtMM2 Hub | PC Full Version
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -34,8 +33,7 @@ local _G = {
     AutoFlingAll = false,
     FlingPower = 100,
     ShowRoleOnRoundStart = false,
-    AutoShoot = false,          -- авто‑стрельба (включается в TargetTab)
-    IsMobile = false           -- ПК
+    AutoShoot = false
 }
 
 -- ==========================================
@@ -102,9 +100,9 @@ end
 -- КОНФИГУРАЦИЯ ДЛЯ ПК
 -- ==========================================
 local UIConfig = {
-    MainWidth = 600,
-    MainHeight = 400,
-    SidebarWidth = 140,
+    MainWidth = 620,
+    MainHeight = 420,
+    SidebarWidth = 160,
     ButtonHeight = 35,
     FontSize = 14,
     SliderHeight = 50,
@@ -148,7 +146,7 @@ local CloseBtn = Instance.new("TextButton", TopBar)
 CloseBtn.Size = UDim2.new(0, 40, 0, 40)
 CloseBtn.Position = UDim2.new(1, -40, 0, 0)
 CloseBtn.BackgroundTransparency = 1
-CloseBtn.Text = "✕"
+CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
 CloseBtn.TextSize = UIConfig.FontSize + 6
 CloseBtn.Font = Enum.Font.GothamBold
@@ -358,12 +356,12 @@ end
 -- ==========================================
 local InfoTab = CreateTab("Info")
 local PlayerTab = CreateTab("Player")
-local FarmTab = CreateTab("Auto Farm")
+local FarmTab = CreateTab("Farm")
 local EspTab = CreateTab("ESP")
-local WinTab = CreateTab("Fast Win")
+local WinTab = CreateTab("Win")
 local TargetTab = CreateTab("Target")
 local FlingTab = CreateTab("Fling")
-local TPTab = CreateTab("Teleport")
+local TPTab = CreateTab("TP")
 
 -- INFO TAB
 local Avatar = Instance.new("ImageLabel", InfoTab)
@@ -394,12 +392,12 @@ task.spawn(function()
     end
 end)
 
--- Функция определения роли и уведомления (срабатывает при входе на карту)
+-- Функция определения роли и уведомления
 local lastRoleNotified = nil
 local function CheckAndNotifyRole()
     if not _G.ShowRoleOnRoundStart then return end
     if not LocalPlayer.Character then return end
-    if workspace:FindFirstChild("Lobby") then return end -- в лобби не показываем
+    if workspace:FindFirstChild("Lobby") then return end
     local role = nil
     if LocalPlayer.Backpack:FindFirstChild("Knife") or LocalPlayer.Character:FindFirstChild("Knife") then
         role = "Murderer"
@@ -414,18 +412,16 @@ local function CheckAndNotifyRole()
     end
 end
 
--- Периодическая проверка смены раунда
 task.spawn(function()
     while task.wait(1) do
         pcall(CheckAndNotifyRole)
     end
 end)
 
--- Тоггл для отображения роли в начале раунда
 CreateToggle(InfoTab, "Show Role On Round Start", false, function(s)
     _G.ShowRoleOnRoundStart = s
     if s then
-        lastRoleNotified = nil -- сброс для мгновенного показа
+        lastRoleNotified = nil
         CheckAndNotifyRole()
     end
 end)
@@ -435,7 +431,7 @@ CreateSlider(PlayerTab, "WalkSpeed", 16, 150, 16, function(v) if LocalPlayer.Cha
 CreateSlider(PlayerTab, "JumpPower", 50, 200, 50, function(v) if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.JumpPower = v end end)
 CreateToggle(PlayerTab, "Noclip", false, function(s) _G.Noclip = s end)
 CreateToggle(PlayerTab, "Infinite Jump", false, function(s) _G.InfJump = s end)
-CreateToggle(PlayerTab, "Tiny Mode (Ghost)", false, function(s)
+CreateToggle(PlayerTab, "Tiny Mode", false, function(s)
     _G.TinyMode = s
     local char = LocalPlayer.Character
     if char then
@@ -458,7 +454,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- TARGET TAB & AUTO AIM
+-- TARGET TAB
 local TargetListFrame = Instance.new("Frame", TargetTab)
 TargetListFrame.Size = UDim2.new(1, 0, 0, 180)
 TargetListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
@@ -504,11 +500,11 @@ end
 
 task.spawn(function() while task.wait(2) do pcall(UpdateTargetList) end end)
 
-CreateButton(TargetTab, "🔄 Refresh List", UpdateTargetList)
-CreateButton(TargetTab, "👤 Teleport Behind Target", function()
+CreateButton(TargetTab, "Refresh", UpdateTargetList)
+CreateButton(TargetTab, "Teleport Behind", function()
     if SelectedTarget and SelectedTarget.Character and SelectedTarget.Character:FindFirstChild("HumanoidRootPart") then
         LocalPlayer.Character:PivotTo(SelectedTarget.Character.HumanoidRootPart.CFrame * CFrame.new(0,0,-3))
-        Notify("Target", "Teleported behind "..SelectedTarget.Name, 2)
+        Notify("Target", "Teleported", 2)
     else Notify("Error", "No target", 2) end
 end)
 
@@ -538,7 +534,6 @@ local function AutoAimLoop()
         if target and target.Character and target.Character:FindFirstChild("Head") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
             workspace.CurrentCamera.CFrame = CFrame.lookAt(LocalPlayer.Character.Head.Position, target.Character.Head.Position)
             workspace.CurrentCamera.FieldOfView = _G.AutoShoot and 30 or 70
-            -- Авто-стрельба
             if _G.AutoShoot and LocalPlayer.Character then
                 local gun = LocalPlayer.Character:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
                 if gun then
@@ -560,9 +555,7 @@ CreateToggle(TargetTab, "Auto Aim Murderer", false, function(s) autoAimMurderer 
 CreateToggle(TargetTab, "Auto Aim Sheriff", false, function(s) autoAimSheriff = s; AutoAimLoop() end)
 CreateToggle(TargetTab, "Auto Shoot (Gun)", false, function(s) _G.AutoShoot = s; if not s then workspace.CurrentCamera.FieldOfView = 70 end end)
 
--- ==========================================
 -- FLING TAB
--- ==========================================
 local FlingActive = false
 local SelectedFlingTargets = {}
 local FlingCheckboxes = {}
@@ -744,14 +737,14 @@ end
 
 task.spawn(function() while task.wait(2) do pcall(UpdateFlingList) end end)
 
-CreateButton(FlingTab, "🔄 Refresh List", UpdateFlingList)
-CreateButton(FlingTab, "✅ Select All", function() SelectAllFling(true) end)
-CreateButton(FlingTab, "❌ Deselect All", function() SelectAllFling(false) end)
-CreateButton(FlingTab, "▶ Start Fling", function()
+CreateButton(FlingTab, "Refresh", UpdateFlingList)
+CreateButton(FlingTab, "Select All", function() SelectAllFling(true) end)
+CreateButton(FlingTab, "Deselect All", function() SelectAllFling(false) end)
+CreateButton(FlingTab, "Start Fling", function()
     if FlingActive then return end
     if next(SelectedFlingTargets) == nil then Notify("Fling", "No targets selected", 2) return end
     FlingActive = true
-    Notify("Fling", "Started flinging", 2)
+    Notify("Fling", "Started", 2)
     OldPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame
     task.spawn(function()
         while FlingActive do
@@ -766,7 +759,7 @@ CreateButton(FlingTab, "▶ Start Fling", function()
         end
     end)
 end)
-CreateButton(FlingTab, "⏹ Stop Fling", function() FlingActive = false; Notify("Fling", "Stopped", 2) end)
+CreateButton(FlingTab, "Stop Fling", function() FlingActive = false; Notify("Fling", "Stopped", 2) end)
 
 -- ==========================================
 -- АВТОФАРМ + АВТОВИН + АВТОФЛИНГ
@@ -922,7 +915,7 @@ function TryAutoFling()
             if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then murderer = p; break end
         end
         if not murderer then return end
-        Notify("Auto Fling", "Flinging murderer with power ".._G.FlingPower, 2)
+        Notify("Auto Fling", "Flinging murderer", 2)
         for _=1,5 do
             if not _G.AutoFarm then break end
             SkidFling(murderer)
@@ -978,10 +971,10 @@ CreateToggle(FarmTab, "Auto Fling ALL (after farm)", false, function(s) _G.AutoF
 CreateSlider(FarmTab, "Flight Speed", 10, 80, 25, function(v) _G.FarmSpeed = v end)
 CreateSlider(FarmTab, "Fling Power", 50, 300, 100, function(v) _G.FlingPower = v end)
 
-CreateButton(FarmTab, "🔄 Force Rejoin", function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
-CreateButton(FarmTab, "📍 Teleport to Map", TeleportToMap)
-CreateButton(FarmTab, "🏠 Teleport to Lobby", TeleportToLobby)
-CreateButton(FarmTab, "💰 Reset Coin Counter", function() _G.CollectedCoins = 0 end)
+CreateButton(FarmTab, "Force Rejoin", function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
+CreateButton(FarmTab, "Teleport to Map", TeleportToMap)
+CreateButton(FarmTab, "Teleport to Lobby", TeleportToLobby)
+CreateButton(FarmTab, "Reset Coin Counter", function() _G.CollectedCoins = 0 end)
 
 -- ESP TAB
 CreateToggle(EspTab, "Enable Roles ESP", false, function(s)
@@ -1007,7 +1000,7 @@ RunService.RenderStepped:Connect(function()
 end)
 
 -- FAST WIN TAB
-CreateButton(WinTab, "🎯 Sheriff: Auto-Shoot Murderer", function()
+CreateButton(WinTab, "Sheriff: Shoot Murderer", function()
     local char = LocalPlayer.Character
     if not char then return end
     local gun = char:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
@@ -1036,7 +1029,7 @@ CreateButton(WinTab, "🎯 Sheriff: Auto-Shoot Murderer", function()
     else Notify("Error", "Shoot remote not found!", 2) end
 end)
 
-CreateButton(WinTab, "🔪 Murderer: Kill All (AOE)", function()
+CreateButton(WinTab, "Murderer: Kill All (AOE)", function()
     local char = LocalPlayer.Character
     if not char then return end
     local knife = char:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife")
@@ -1053,8 +1046,7 @@ CreateButton(WinTab, "🔪 Murderer: Kill All (AOE)", function()
     Notify("Win", "All killed!", 2)
 end)
 
--- Телепорт к пистолету с подбором
-CreateButton(WinTab, "🔫 Teleport to Gun (+ return)", function()
+CreateButton(WinTab, "Teleport to Gun (+ return)", function()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then Notify("Error", "No character", 2) return end
     local oldCFrame = char.HumanoidRootPart.CFrame
@@ -1132,9 +1124,9 @@ UserInputService.InputEnded:Connect(function(input)
 end)
 
 -- TELEPORT TAB
-CreateButton(TPTab, "🏠 Teleport to Lobby", TeleportToLobby)
-CreateButton(TPTab, "📍 Teleport to Map", TeleportToMap)
-CreateButton(TPTab, "🎲 Random Map Spawn", function()
+CreateButton(TPTab, "Teleport to Lobby", TeleportToLobby)
+CreateButton(TPTab, "Teleport to Map", TeleportToMap)
+CreateButton(TPTab, "Random Map Spawn", function()
     local char = LocalPlayer.Character
     if not char then return end
     local spawns = workspace:FindFirstChild("Normal"):FindFirstChild("Spawns")
@@ -1145,7 +1137,7 @@ CreateButton(TPTab, "🎲 Random Map Spawn", function()
 end)
 
 -- RTX
-CreateToggle(InfoTab, "RTX Graphics (Soft)", false, function(s)
+CreateToggle(InfoTab, "RTX Graphics", false, function(s)
     _G.RTXEnabled = s
     if s then
         Lighting.Brightness = 2.5; Lighting.Ambient = Color3.fromRGB(180,180,200); Lighting.OutdoorAmbient = Color3.fromRGB(200,200,220)
@@ -1158,7 +1150,7 @@ CreateToggle(InfoTab, "RTX Graphics (Soft)", false, function(s)
     end
 end)
 
-CreateButton(InfoTab, "⚡ FPS Unlocker (240)", function() setfpscap(240); Notify("FPS", "Cap set to 240", 2) end)
+CreateButton(InfoTab, "FPS Unlocker (240)", function() setfpscap(240); Notify("FPS", "Cap set to 240", 2) end)
 
 -- Запуск
 pcall(function()
