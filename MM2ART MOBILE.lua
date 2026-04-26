@@ -746,12 +746,396 @@ CreateButton(FlingTab, "Start", function()
 end)
 CreateButton(FlingTab, "Stop", function() FlingActive = false; Notify("Fling", "Stopped", 2) end)
 
--- АВТОФАРМ + АВТОВИН + АВТОФЛИНГ (идентично ПК-версии)
--- ... (скопируйте блок с функциями TeleportToLobby, TeleportToMap, RejoinServer, FlyToCoin, FarmCoins, TryAutoWin, TryAutoFling и тогглы из ПК-скрипта)
--- Я опускаю повторяющийся код для экономии места, но в полном скрипте он должен быть.
+-- ==========================================
+-- АВТОФАРМ + АВТОВИН + АВТОФЛИНГ
+-- ==========================================
+local RejoinConnection, FarmLoopRunning = false, nil
 
--- ESP, FAST WIN, TELEPORT, RTX – точно такие же, как в ПК-версии.
--- ... (скопируйте их из ПК-скрипта)
+local function TeleportToLobby()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local lobbySpawn = workspace:FindFirstChild("Lobby") and workspace.Lobby:FindFirstChild("Spawns")
+    if lobbySpawn then
+        local parts = lobbySpawn:GetChildren()
+        if #parts > 0 then char:PivotTo(parts[math.random(#parts)].CFrame + Vector3.new(0,3,0)); return true end
+    end
+    char:PivotTo(CFrame.new(-108.5, 145, 0.6))
+    return true
+end
+
+local function TeleportToMap()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local mapFolder = workspace:FindFirstChild("Normal")
+    local spawns = mapFolder and mapFolder:FindFirstChild("Spawns")
+    if spawns then
+        local pts = spawns:GetChildren()
+        if #pts > 0 then char:PivotTo(pts[math.random(#pts)].CFrame + Vector3.new(0,3,0)); return true end
+    end
+    if mapFolder then char:PivotTo(CFrame.new(mapFolder:GetModelCFrame().Position + Vector3.new(0,5,0))); return true end
+    return false
+end
+
+local function RejoinServer()
+    if not _G.AutoFarm or not _G.AutoRejoin then return end
+    Notify("Auto Farm", "Kicked detected! Rejoining...", 5)
+    task.wait(2)
+    pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
+end
+
+local function FlyToCoin(coin)
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return false end
+    local root = char.HumanoidRootPart
+    local targetPos = coin.Position + Vector3.new(0,2,0)
+    local distance = (root.Position - targetPos).Magnitude
+    local flyTime = math.clamp(distance / (_G.FarmSpeed * 2), 0.5, 2.0)
+    local oldNoclip = _G.Noclip
+    if _G.NoclipFarm then _G.Noclip = true end
+    local tween = TweenService:Create(root, TweenInfo.new(flyTime, Enum.EasingStyle.Linear), {CFrame = CFrame.new(targetPos)})
+    tween:Play()
+    local start = tick()
+    while tick() - start < flyTime + 0.5 do
+        if not _G.AutoFarm or not coin or not coin.Parent then tween:Cancel(); break end
+        if (root.Position - targetPos).Magnitude < 2 then break end
+        task.wait()
+    end
+    if _G.NoclipFarm then _G.Noclip = oldNoclip end
+    if coin and coin.Parent then
+        root.CFrame = CFrame.new(coin.Position + Vector3.new(0,1,0))
+        task.wait(0.1)
+        if not coin.Parent then _G.CollectedCoins += 1 end
+        return true
+    end
+    return false
+end
+
+local function FarmCoins()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local root = char.HumanoidRootPart
+    local coins = {}
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") and (obj.Name == "Coin" or obj.Name:find("Coin")) and obj.Transparency < 0.9 and obj.Parent then
+            table.insert(coins, obj)
+        end
+    end
+    if #coins == 0 then
+        if _G.AutoFlingMurderer or _G.AutoFlingAll then TryAutoFling() end
+        if _G.AutoWin then TryAutoWin() end
+        return
+    end
+    table.sort(coins, function(a,b) return (root.Position - a.Position).Magnitude < (root.Position - b.Position).Magnitude end)
+    FlyToCoin(coins[1])
+end
+
+function TryAutoWin()
+    local role = nil
+    if LocalPlayer.Backpack:FindFirstChild("Knife") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")) then role = "Murderer"
+    elseif LocalPlayer.Backpack:FindFirstChild("Gun") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) then role = "Sheriff" end
+    if not role then return end
+    if role == "Murderer" then
+        local knife = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife")
+        if not knife then return end
+        knife.Parent = LocalPlayer.Character
+        task.wait(0.2)
+        local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                p.Character:PivotTo(CFrame.new(myPos + Vector3.new(math.random(-2,2),0,math.random(-2,2))))
+            end
+        end
+        for _=1,2 do knife:Activate(); task.wait(0.1) end
+        Notify("Auto Win", "All eliminated!", 2)
+    elseif role == "Sheriff" then
+        local murderer = nil
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then murderer = p; break end
+        end
+        if not murderer then return end
+        local gun = LocalPlayer.Character:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
+        if not gun then return end
+        gun.Parent = LocalPlayer.Character
+        task.wait(0.2)
+        local murdRoot = murderer.Character.HumanoidRootPart
+        LocalPlayer.Character:PivotTo(murdRoot.CFrame * CFrame.new(0,0,-3))
+        task.wait(0.1)
+        local shootRemote = ReplicatedStorage:FindFirstChild("ShootGun") or ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("ShootGun")
+        if not shootRemote then
+            for _, v in pairs(ReplicatedStorage:GetDescendants()) do if v:IsA("RemoteEvent") and (v.Name=="ShootGun" or v.Name=="Gun") then shootRemote=v; break end end
+        end
+        if shootRemote then
+            for _=1,5 do
+                workspace.CurrentCamera.CFrame = CFrame.lookAt(LocalPlayer.Character.Head.Position, murdRoot.Position)
+                shootRemote:FireServer(murdRoot.Position)
+                task.wait(0.2)
+            end
+            Notify("Auto Win", "Murderer shot!", 2)
+        end
+    end
+    repeat task.wait(1) until not workspace:FindFirstChild("Normal") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and workspace:FindFirstChild("Lobby"))
+    TeleportToLobby()
+    task.wait(2)
+    if _G.AutoFarm then TeleportToMap() end
+end
+
+function TryAutoFling()
+    if _G.AutoFlingAll then
+        local targets = {}
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                table.insert(targets, p)
+            end
+        end
+        if #targets > 0 then
+            Notify("Auto Fling", "Flinging all "..#targets.." players!", 2)
+            for _, p in ipairs(targets) do
+                SkidFling(p)
+                task.wait(0.3)
+            end
+        end
+    elseif _G.AutoFlingMurderer then
+        local murderer = nil
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then murderer = p; break end
+        end
+        if not murderer then return end
+        Notify("Auto Fling", "Flinging murderer", 2)
+        for _=1,5 do
+            if not _G.AutoFarm then break end
+            SkidFling(murderer)
+            task.wait(0.3)
+        end
+    end
+end
+
+CreateToggle(FarmTab, "Auto Farm Coins", false, function(state)
+    _G.AutoFarm = state
+    if state then
+        Notify("Auto Farm", "Started! Speed: ".._G.FarmSpeed, 5)
+        local afk = LocalPlayer.Idled:Connect(function()
+            if _G.AutoFarm then
+                VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Space, false, game)
+                task.wait(0.1)
+                VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Space, false, game)
+            end
+        end)
+        if workspace:FindFirstChild("Lobby") then TeleportToMap() end
+        if not FarmLoopRunning then
+            FarmLoopRunning = true
+            task.spawn(function()
+                while _G.AutoFarm and FarmLoopRunning do
+                    pcall(function()
+                        local char = LocalPlayer.Character
+                        if not char then return end
+                        if workspace:FindFirstChild("Lobby") and workspace.Lobby:FindFirstChild("Spawns") and workspace:FindFirstChild("Normal") then TeleportToMap() end
+                        FarmCoins()
+                    end)
+                    task.wait(0.15)
+                end
+                FarmLoopRunning = false
+                TeleportToLobby()
+            end)
+        end
+        RejoinConnection = LocalPlayer:GetPropertyChangedSignal("Parent"):Connect(function() if not _G.AutoFarm then return end; if not LocalPlayer.Parent then RejoinServer() end end)
+        _G.AFKConnection = afk
+    else
+        Notify("Auto Farm", "Stopped! Coins: ".._G.CollectedCoins, 3)
+        FarmLoopRunning = false
+        if RejoinConnection then RejoinConnection:Disconnect(); RejoinConnection = nil end
+        if _G.AFKConnection then _G.AFKConnection:Disconnect(); _G.AFKConnection = nil end
+        TeleportToLobby()
+    end
+end)
+
+CreateToggle(FarmTab, "Auto Rejoin on Kick", true, function(s) _G.AutoRejoin = s end)
+CreateToggle(FarmTab, "Noclip Farm", false, function(s) _G.NoclipFarm = s end)
+CreateToggle(FarmTab, "Auto Win (after farm)", false, function(s) _G.AutoWin = s end)
+CreateToggle(FarmTab, "Auto Fling Murderer", false, function(s) _G.AutoFlingMurderer = s end)
+CreateToggle(FarmTab, "Auto Fling ALL (after farm)", false, function(s) _G.AutoFlingAll = s end)
+CreateSlider(FarmTab, "Flight Speed", 10, 80, 25, function(v) _G.FarmSpeed = v end)
+CreateSlider(FarmTab, "Fling Power", 50, 300, 100, function(v) _G.FlingPower = v end)
+
+CreateButton(FarmTab, "Force Rejoin", function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
+CreateButton(FarmTab, "Teleport to Map", TeleportToMap)
+CreateButton(FarmTab, "Teleport to Lobby", TeleportToLobby)
+CreateButton(FarmTab, "Reset Coin Counter", function() _G.CollectedCoins = 0 end)
+
+-- ESP TAB
+CreateToggle(EspTab, "Enable Roles ESP", false, function(s)
+    _G.ESP = s
+    if not s then for _, p in pairs(Players:GetPlayers()) do if p.Character and p.Character:FindFirstChild("ArtESP") then p.Character.ArtESP:Destroy() end end end
+end)
+RunService.RenderStepped:Connect(function()
+    if _G.ESP then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+                local hl = p.Character:FindFirstChild("ArtESP") or Instance.new("Highlight")
+                hl.Name = "ArtESP"
+                hl.Parent = p.Character
+                hl.OutlineColor = Color3.new(1,1,1)
+                hl.FillTransparency = 0.5
+                hl.OutlineTransparency = 0
+                if p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife") then hl.FillColor = Color3.fromRGB(255,50,50)
+                elseif p.Backpack:FindFirstChild("Gun") or p.Character:FindFirstChild("Gun") then hl.FillColor = Color3.fromRGB(50,150,255)
+                else hl.FillColor = Color3.fromRGB(50,255,50) end
+            end
+        end
+    end
+end)
+
+-- FAST WIN TAB
+CreateButton(WinTab, "Sheriff: Shoot Murderer", function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local gun = char:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
+    if not gun then Notify("Error", "No gun!", 2) return end
+    gun.Parent = char
+    task.wait(0.1)
+    local murderer = nil
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then murderer = p; break end
+    end
+    if not murderer then Notify("Error", "Murderer not found!", 2) return end
+    local murdRoot = murderer.Character.HumanoidRootPart
+    char:PivotTo(murdRoot.CFrame * CFrame.new(0,0,-3))
+    task.wait(0.1)
+    local shootRemote = ReplicatedStorage:FindFirstChild("ShootGun") or ReplicatedStorage:FindFirstChild("Remotes"):FindFirstChild("ShootGun")
+    if not shootRemote then
+        for _, v in pairs(ReplicatedStorage:GetDescendants()) do if v:IsA("RemoteEvent") and (v.Name=="ShootGun" or v.Name=="Gun") then shootRemote=v; break end end
+    end
+    if shootRemote then
+        for _=1,5 do
+            workspace.CurrentCamera.CFrame = CFrame.lookAt(char.Head.Position, murdRoot.Position)
+            shootRemote:FireServer(murdRoot.Position)
+            task.wait(0.2)
+        end
+        Notify("Win", "Murderer shot 5 times!", 2)
+    else Notify("Error", "Shoot remote not found!", 2) end
+end)
+
+CreateButton(WinTab, "Murderer: Kill All (AOE)", function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local knife = char:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife")
+    if not knife then Notify("Error", "No knife!", 2) return end
+    knife.Parent = char
+    task.wait(0.1)
+    local myPos = char.HumanoidRootPart.Position
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            p.Character:PivotTo(CFrame.new(myPos + Vector3.new(math.random(-2,2),0,math.random(-2,2))))
+        end
+    end
+    for _=1,2 do knife:Activate(); task.wait(0.1) end
+    Notify("Win", "All killed!", 2)
+end)
+
+CreateButton(WinTab, "Teleport to Gun (+ return)", function()
+    local char = LocalPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then Notify("Error", "No character", 2) return end
+    local oldCFrame = char.HumanoidRootPart.CFrame
+    local gunFound = false
+    local targetPos = nil
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v.Name == "GunDrop" or v.Name == "Gun" then
+            local pos = v:IsA("Model") and v:GetModelCFrame() or v.CFrame
+            if pos then
+                targetPos = pos + Vector3.new(0,2,0)
+                char:PivotTo(targetPos)
+                Notify("Teleport", "Teleported to gun! Waiting for pickup...", 2)
+                gunFound = true
+                break
+            end
+        end
+    end
+    if not gunFound then Notify("Error", "No gun found!", 2) return end
+    local startTime = tick()
+    local itemGrabbed = false
+    repeat
+        task.wait(0.1)
+        local stillThere = false
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v.Name == "GunDrop" or v.Name == "Gun" then
+                if (v:IsA("Model") and (v:GetModelCFrame().Position - targetPos).Magnitude < 3) or (v:IsA("BasePart") and (v.Position - targetPos).Magnitude < 3) then
+                    stillThere = true
+                    break
+                end
+            end
+        end
+        if not stillThere then
+            itemGrabbed = true
+            Notify("Teleport", "Gun picked up!", 2)
+            break
+        end
+    until tick() - startTime > 2
+    if not itemGrabbed then Notify("Teleport", "Pickup timeout, returning...", 2) end
+    if char and char:FindFirstChild("HumanoidRootPart") then
+        char:PivotTo(oldCFrame)
+    end
+end)
+
+-- Rучной аим (E/Q) – оставлен для совместимости
+local aimConn
+local function StartAim(target)
+    if aimConn then aimConn:Disconnect() end
+    aimConn = RunService.RenderStepped:Connect(function()
+        if target and target.Character and target.Character:FindFirstChild("Head") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
+            workspace.CurrentCamera.CFrame = CFrame.lookAt(LocalPlayer.Character.Head.Position, target.Character.Head.Position)
+        end
+    end)
+end
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then
+                _G.AimTarget = p; _G.AimKey = "E"; StartAim(p); return
+            end
+        end
+    elseif input.KeyCode == Enum.KeyCode.Q then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Gun") or p.Character:FindFirstChild("Gun")) then
+                _G.AimTarget = p; _G.AimKey = "Q"; StartAim(p); return
+            end
+        end
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if (input.KeyCode == Enum.KeyCode.E and _G.AimKey=="E") or (input.KeyCode == Enum.KeyCode.Q and _G.AimKey=="Q") then
+        if aimConn then aimConn:Disconnect(); aimConn = nil end
+        _G.AimKey = nil; _G.AimTarget = nil
+    end
+end)
+
+-- TELEPORT TAB
+CreateButton(TPTab, "Teleport to Lobby", TeleportToLobby)
+CreateButton(TPTab, "Teleport to Map", TeleportToMap)
+CreateButton(TPTab, "Random Map Spawn", function()
+    local char = LocalPlayer.Character
+    if not char then return end
+    local spawns = workspace:FindFirstChild("Normal"):FindFirstChild("Spawns")
+    if spawns then
+        local pts = spawns:GetChildren()
+        if #pts > 0 then char:PivotTo(pts[math.random(#pts)].CFrame + Vector3.new(0,3,0)) end
+    end
+end)
+
+-- RTX
+CreateToggle(InfoTab, "RTX Graphics", false, function(s)
+    _G.RTXEnabled = s
+    if s then
+        Lighting.Brightness = 2.5; Lighting.Ambient = Color3.fromRGB(180,180,200); Lighting.OutdoorAmbient = Color3.fromRGB(200,200,220)
+        Lighting.ExposureCompensation = 0.3
+        local bloom = Instance.new("BloomEffect"); bloom.Intensity = 0.8; bloom.Size = 24; bloom.Threshold = 0.9; bloom.Parent = Lighting
+        local cc = Instance.new("ColorCorrectionEffect"); cc.Brightness = 0.05; cc.Contrast = 0.1; cc.Saturation = 0.2; cc.TintColor = Color3.fromRGB(255,240,230); cc.Parent = Lighting
+    else
+        Lighting.Brightness = 2; Lighting.Ambient = Color3.fromRGB(127,127,127); Lighting.OutdoorAmbient = Color3.fromRGB(127,127,127); Lighting.ExposureCompensation = 0
+        for _, v in pairs(Lighting:GetChildren()) do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") then v:Destroy() end end
+    end
+end)
+
+CreateButton(InfoTab, "FPS Unlocker (240)", function() setfpscap(240); Notify("FPS", "Cap set to 240", 2) end)
 
 -- Запуск
 pcall(function()
