@@ -1,4 +1,4 @@
--- ArtMM2 Hub | PC Full Version
+-- ArtMM2 Hub | PC Full Version (Fixed Aim)
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -454,7 +454,7 @@ RunService.Stepped:Connect(function()
     end
 end)
 
--- TARGET TAB
+-- TARGET TAB (С ИСПРАВЛЕННЫМ АИМОМ)
 local TargetListFrame = Instance.new("Frame", TargetTab)
 TargetListFrame.Size = UDim2.new(1, 0, 0, 180)
 TargetListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
@@ -508,10 +508,11 @@ CreateButton(TargetTab, "Teleport Behind", function()
     else Notify("Error", "No target", 2) end
 end)
 
--- Авто-аим
+-- Авто-аим (Исправленный, с плавной доводкой)
 local autoAimMurderer = false
 local autoAimSheriff = false
 local autoAimConn
+
 local function AutoAimLoop()
     if autoAimConn then autoAimConn:Disconnect() end
     if not (autoAimMurderer or autoAimSheriff) then return end
@@ -519,21 +520,25 @@ local function AutoAimLoop()
         local target = nil
         if autoAimMurderer then
             for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                     if p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife") then target = p break end
                 end
             end
         end
         if not target and autoAimSheriff then
             for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
                     if p.Backpack:FindFirstChild("Gun") or p.Character:FindFirstChild("Gun") then target = p break end
                 end
             end
         end
-        if target and target.Character and target.Character:FindFirstChild("Head") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(LocalPlayer.Character.Head.Position, target.Character.Head.Position)
-            workspace.CurrentCamera.FieldOfView = _G.AutoShoot and 30 or 70
+        
+        local cam = workspace.CurrentCamera
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local targetCFrame = CFrame.lookAt(cam.CFrame.Position, target.Character.HumanoidRootPart.Position)
+            cam.CFrame = cam.CFrame:Lerp(targetCFrame, 0.15)
+            
+            cam.FieldOfView = _G.AutoShoot and 30 or 70
             if _G.AutoShoot and LocalPlayer.Character then
                 local gun = LocalPlayer.Character:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
                 if gun then
@@ -542,15 +547,16 @@ local function AutoAimLoop()
                         for _, v in pairs(ReplicatedStorage:GetDescendants()) do if v:IsA("RemoteEvent") and (v.Name=="ShootGun" or v.Name=="Gun") then shootRemote=v; break end end
                     end
                     if shootRemote then
-                        shootRemote:FireServer(target.Character.Head.Position)
+                        shootRemote:FireServer(target.Character.HumanoidRootPart.Position)
                     end
                 end
             end
         else
-            workspace.CurrentCamera.FieldOfView = 70
+            cam.FieldOfView = 70
         end
     end)
 end
+
 CreateToggle(TargetTab, "Auto Aim Murderer", false, function(s) autoAimMurderer = s; AutoAimLoop() end)
 CreateToggle(TargetTab, "Auto Aim Sheriff", false, function(s) autoAimSheriff = s; AutoAimLoop() end)
 CreateToggle(TargetTab, "Auto Shoot (Gun)", false, function(s) _G.AutoShoot = s; if not s then workspace.CurrentCamera.FieldOfView = 70 end end)
@@ -1090,16 +1096,19 @@ CreateButton(WinTab, "Teleport to Gun (+ return)", function()
     end
 end)
 
--- Ручной аим (E/Q)
+-- Ручной аим (E/Q) - Исправленный
 local aimConn
 local function StartAim(target)
     if aimConn then aimConn:Disconnect() end
     aimConn = RunService.RenderStepped:Connect(function()
-        if target and target.Character and target.Character:FindFirstChild("Head") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(LocalPlayer.Character.Head.Position, target.Character.Head.Position)
+        if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+            local cam = workspace.CurrentCamera
+            local targetCFrame = CFrame.lookAt(cam.CFrame.Position, target.Character.HumanoidRootPart.Position)
+            cam.CFrame = cam.CFrame:Lerp(targetCFrame, 0.15)
         end
     end)
 end
+
 UserInputService.InputBegan:Connect(function(input, gp)
     if gp then return end
     if input.KeyCode == Enum.KeyCode.E then
@@ -1116,6 +1125,7 @@ UserInputService.InputBegan:Connect(function(input, gp)
         end
     end
 end)
+
 UserInputService.InputEnded:Connect(function(input)
     if (input.KeyCode == Enum.KeyCode.E and _G.AimKey=="E") or (input.KeyCode == Enum.KeyCode.Q and _G.AimKey=="Q") then
         if aimConn then aimConn:Disconnect(); aimConn = nil end
