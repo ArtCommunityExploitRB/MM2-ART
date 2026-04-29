@@ -1,4 +1,4 @@
--- ArtMM2 Hub | Mobile Full Version (Phone with floating buttons)
+-- ArtMM2 Hub | Compact GUI (280x350) – All features, no floating buttons
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -97,7 +97,7 @@ local function Notify(title, text, duration)
 end
 
 -- ==========================================
--- КОНФИГУРАЦИЯ ДЛЯ ТЕЛЕФОНА
+-- КОНФИГУРАЦИЯ (компактный размер)
 -- ==========================================
 local UIConfig = {
     MainWidth = 280,
@@ -107,9 +107,7 @@ local UIConfig = {
     FontSize = 13,
     SliderHeight = 50,
     ScrollThickness = 4,
-    TabBtnHeight = 36,
-    StartMinimized = false,
-    FloatingHub = false
+    TabBtnHeight = 36
 }
 
 local ArtMM2 = Instance.new("ScreenGui")
@@ -117,55 +115,10 @@ ArtMM2.Name = "ArtMM2"
 ArtMM2.Parent = CoreGui
 ArtMM2.ResetOnSpawn = false
 
--- ==========================================
--- ПЛАВАЮЩИЕ КНОПКИ БЫСТРОГО ДОСТУПА
--- ==========================================
--- Кнопка Aim (автоаим + стрельба)
-local AimButton = Instance.new("TextButton", ArtMM2)
-AimButton.Size = UDim2.new(0, 55, 0, 55)
-AimButton.Position = UDim2.new(1, -70, 0, 30)
-AimButton.BackgroundColor3 = Color3.fromRGB(120, 81, 255)
-AimButton.Text = "🎯"
-AimButton.TextSize = 24
-AimButton.Font = Enum.Font.SourceSansBold
-Instance.new("UICorner", AimButton).CornerRadius = UDim.new(1, 0)
-AimButton.ZIndex = 5
-AimButton.Active = true
-AimButton.Draggable = true
-
--- Кнопка Farm (автофарм)
-local FarmButton = Instance.new("TextButton", ArtMM2)
-FarmButton.Size = UDim2.new(0, 55, 0, 55)
-FarmButton.Position = UDim2.new(1, -70, 1, -100)
-FarmButton.BackgroundColor3 = Color3.fromRGB(60, 200, 120)
-FarmButton.Text = "🏃"
-FarmButton.TextSize = 24
-FarmButton.Font = Enum.Font.SourceSansBold
-Instance.new("UICorner", FarmButton).CornerRadius = UDim.new(1, 0)
-FarmButton.ZIndex = 5
-FarmButton.Active = true
-FarmButton.Draggable = true
-
--- Кнопка Fling (флинг всех)
-local FlingButton = Instance.new("TextButton", ArtMM2)
-FlingButton.Size = UDim2.new(0, 55, 0, 55)
-FlingButton.Position = UDim2.new(0, 20, 0, 30)
-FlingButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-FlingButton.Text = "💨"
-FlingButton.TextSize = 24
-FlingButton.Font = Enum.Font.SourceSansBold
-Instance.new("UICorner", FlingButton).CornerRadius = UDim.new(1, 0)
-FlingButton.ZIndex = 5
-FlingButton.Active = true
-FlingButton.Draggable = true
-
--- ==========================================
--- ГЛАВНОЕ ОКНО
--- ==========================================
 local Main = Instance.new("Frame", ArtMM2)
 Main.Name = "MainFrame"
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-Main.Position = UDim2.new(0, 10, 0.5, -UIConfig.MainHeight/2)
+Main.Position = UDim2.new(0.5, -UIConfig.MainWidth/2, 0.5, -UIConfig.MainHeight/2)
 Main.Size = UDim2.new(0, UIConfig.MainWidth, 0, UIConfig.MainHeight)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
@@ -397,7 +350,7 @@ local function CreateSlider(parent, text, min, max, default, callback)
 end
 
 -- ==========================================
--- ИНИЦИАЛИЗАЦИЯ ВКЛАДОК
+-- ВКЛАДКИ
 -- ==========================================
 local InfoTab = CreateTab("Info")
 local PlayerTab = CreateTab("Player")
@@ -436,7 +389,6 @@ task.spawn(function()
     end
 end)
 
--- Функция определения роли и уведомления
 local lastRoleNotified = nil
 local function CheckAndNotifyRole()
     if not _G.ShowRoleOnRoundStart then return end
@@ -451,13 +403,9 @@ local function CheckAndNotifyRole()
         Notify("ROLE", "You are "..role.."!", 4)
     end
 end
-
 task.spawn(function() while task.wait(1) do pcall(CheckAndNotifyRole) end end)
 
-CreateToggle(InfoTab, "Show Role On Round Start", false, function(s)
-    _G.ShowRoleOnRoundStart = s
-    if s then lastRoleNotified = nil; CheckAndNotifyRole() end
-end)
+CreateToggle(InfoTab, "Show Role", false, function(s) _G.ShowRoleOnRoundStart = s; if s then lastRoleNotified = nil; CheckAndNotifyRole() end end)
 
 -- PLAYER TAB
 CreateSlider(PlayerTab, "WalkSpeed", 16, 150, 16, function(v) if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.WalkSpeed = v end end)
@@ -480,7 +428,6 @@ UserInputService.JumpRequest:Connect(function()
         LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
-
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, p in pairs(LocalPlayer.Character:GetDescendants()) do if p:IsA("BasePart") and p.CanCollide then p.CanCollide = false end end
@@ -492,7 +439,6 @@ local TargetListFrame = Instance.new("Frame", TargetTab)
 TargetListFrame.Size = UDim2.new(1, 0, 0, 120)
 TargetListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 Instance.new("UICorner", TargetListFrame).CornerRadius = UDim.new(0, 6)
-
 local TargetScrolling = Instance.new("ScrollingFrame", TargetListFrame)
 TargetScrolling.Size = UDim2.new(1, -10, 1, -10)
 TargetScrolling.Position = UDim2.new(0, 5, 0, 5)
@@ -500,14 +446,12 @@ TargetScrolling.BackgroundTransparency = 1
 TargetScrolling.ScrollBarThickness = UIConfig.ScrollThickness
 TargetScrolling.CanvasSize = UDim2.new(0,0,0,0)
 TargetScrolling.BorderSizePixel = 0
-
 local TargetLayout = Instance.new("UIListLayout", TargetScrolling)
 TargetLayout.Padding = UDim.new(0, 4)
 TargetLayout.SortOrder = Enum.SortOrder.LayoutOrder
 TargetLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() TargetScrolling.CanvasSize = UDim2.new(0,0,0,TargetLayout.AbsoluteContentSize.Y+5) end)
 
 local SelectedTarget = nil
-
 local function UpdateTargetList()
     for _, c in pairs(TargetScrolling:GetChildren()) do if c:IsA("TextButton") then c:Destroy() end end
     for _, p in pairs(Players:GetPlayers()) do
@@ -530,7 +474,6 @@ local function UpdateTargetList()
         end
     end
 end
-
 task.spawn(function() while task.wait(2) do pcall(UpdateTargetList) end end)
 
 CreateButton(TargetTab, "Refresh", UpdateTargetList)
@@ -565,7 +508,7 @@ local function AutoAimLoop()
         end
         if target and target.Character and target.Character:FindFirstChild("Head") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
             workspace.CurrentCamera.CFrame = CFrame.lookAt(LocalPlayer.Character.Head.Position, target.Character.Head.Position)
-            workspace.CurrentCamera.FieldOfView = 30
+            workspace.CurrentCamera.FieldOfView = _G.AutoShoot and 30 or 70
             if _G.AutoShoot and LocalPlayer.Character then
                 local gun = LocalPlayer.Character:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
                 if gun then
@@ -604,12 +547,9 @@ local function SkidFling(targetPlayer)
     local tHead = tChar:FindFirstChild("Head")
     local accessory = tChar:FindFirstChildOfClass("Accessory")
     local handle = accessory and accessory:FindFirstChild("Handle")
-
     if tHum.Sit then return Notify("Fling", targetPlayer.Name.." is sitting", 2) end
-
     local targetPart = tRoot or tHead or handle
     if not targetPart then return end
-
     local targetNoclip = {}
     for _, part in pairs(tChar:GetDescendants()) do
         if part:IsA("BasePart") and part.CanCollide == false then
@@ -617,17 +557,13 @@ local function SkidFling(targetPlayer)
             part.CanCollide = true
         end
     end
-
     workspace.CurrentCamera.CameraSubject = tHead or handle or tHum
     workspace.FallenPartsDestroyHeight = 0/0
-
     local bv = Instance.new("BodyVelocity")
     bv.Parent = root
     bv.Velocity = Vector3.zero
     bv.MaxForce = Vector3.new(9e9,9e9,9e9)
-
     humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
-
     local power = _G.FlingPower / 100
     local function FPos(basePart, pos, ang)
         root.CFrame = basePart.CFrame * pos * ang
@@ -635,7 +571,6 @@ local function SkidFling(targetPlayer)
         root.Velocity = Vector3.new(9e7 * power, 9e7*10 * power, 9e7 * power)
         root.RotVelocity = Vector3.new(9e8 * power, 9e8 * power, 9e8 * power)
     end
-
     local start = tick()
     local angle = 0
     repeat
@@ -654,16 +589,11 @@ local function SkidFling(targetPlayer)
             task.wait()
         end
     until tick() - start > 2
-
     bv:Destroy()
     humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
     workspace.CurrentCamera.CameraSubject = humanoid
     workspace.FallenPartsDestroyHeight = FPDH
-
-    for _, part in pairs(targetNoclip) do
-        part.CanCollide = false
-    end
-
+    for _, part in pairs(targetNoclip) do part.CanCollide = false end
     if OldPos then
         repeat
             root.CFrame = OldPos * CFrame.new(0,0.5,0)
@@ -679,7 +609,6 @@ local FlingListFrame = Instance.new("Frame", FlingTab)
 FlingListFrame.Size = UDim2.new(1, 0, 0, 120)
 FlingListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 Instance.new("UICorner", FlingListFrame).CornerRadius = UDim.new(0, 6)
-
 local FlingScroll = Instance.new("ScrollingFrame", FlingListFrame)
 FlingScroll.Size = UDim2.new(1, -10, 1, -10)
 FlingScroll.Position = UDim2.new(0, 5, 0, 5)
@@ -687,7 +616,6 @@ FlingScroll.BackgroundTransparency = 1
 FlingScroll.ScrollBarThickness = UIConfig.ScrollThickness
 FlingScroll.CanvasSize = UDim2.new(0,0,0,0)
 FlingScroll.BorderSizePixel = 0
-
 local FlingLayout = Instance.new("UIListLayout", FlingScroll)
 FlingLayout.Padding = UDim.new(0, 4)
 FlingLayout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -703,7 +631,6 @@ local function UpdateFlingList()
             entry.BackgroundColor3 = Color3.fromRGB(50,50,55)
             Instance.new("UICorner", entry).CornerRadius = UDim.new(0,4)
             entry.Parent = FlingScroll
-
             local check = Instance.new("TextButton")
             check.Size = UDim2.new(0, 24, 0, 24)
             check.Position = UDim2.new(0, 3, 0.5, -12)
@@ -711,7 +638,6 @@ local function UpdateFlingList()
             check.Text = ""
             Instance.new("UICorner", check).CornerRadius = UDim.new(0,4)
             check.Parent = entry
-
             local mark = Instance.new("TextLabel")
             mark.Size = UDim2.new(1,0,1,0)
             mark.BackgroundTransparency = 1
@@ -721,7 +647,6 @@ local function UpdateFlingList()
             mark.Font = Enum.Font.SourceSansBold
             mark.Visible = false
             mark.Parent = check
-
             local nameLabel = Instance.new("TextLabel")
             nameLabel.Size = UDim2.new(1, -35, 1, 0)
             nameLabel.Position = UDim2.new(0, 30, 0, 0)
@@ -732,7 +657,6 @@ local function UpdateFlingList()
             nameLabel.TextSize = UIConfig.FontSize
             nameLabel.TextXAlignment = Enum.TextXAlignment.Left
             nameLabel.Parent = entry
-
             local click = Instance.new("TextButton")
             click.Size = UDim2.new(1,0,1,0)
             click.BackgroundTransparency = 1
@@ -791,9 +715,7 @@ CreateButton(FlingTab, "Start", function()
 end)
 CreateButton(FlingTab, "Stop", function() FlingActive = false; Notify("Fling", "Stopped", 2) end)
 
--- ==========================================
--- АВТОФАРМ + АВТОВИН + АВТОФЛИНГ
--- ==========================================
+-- ФАРМ И ОСТАЛЬНОЕ
 local RejoinConnection, FarmLoopRunning = false, nil
 
 local function TeleportToLobby()
@@ -973,7 +895,7 @@ CreateToggle(FarmTab, "Auto Farm Coins", false, function(state)
                     pcall(function()
                         local char = LocalPlayer.Character
                         if not char then return end
-                        if workspace:FindFirstChild("Lobby") and workspace.Lobby:FindFirstChild("Spawns") and workspace:FindFirstChild("Normal") then TeleportToMap() end
+                        if workspace:FindFirstChild("Lobby") and workspace:FindFirstChild("Normal") then TeleportToMap() end
                         FarmCoins()
                     end)
                     task.wait(0.15)
@@ -997,16 +919,16 @@ CreateToggle(FarmTab, "Auto Rejoin on Kick", true, function(s) _G.AutoRejoin = s
 CreateToggle(FarmTab, "Noclip Farm", false, function(s) _G.NoclipFarm = s end)
 CreateToggle(FarmTab, "Auto Win (after farm)", false, function(s) _G.AutoWin = s end)
 CreateToggle(FarmTab, "Auto Fling Murderer", false, function(s) _G.AutoFlingMurderer = s end)
-CreateToggle(FarmTab, "Auto Fling ALL (after farm)", false, function(s) _G.AutoFlingAll = s end)
+CreateToggle(FarmTab, "Auto Fling ALL", false, function(s) _G.AutoFlingAll = s end)
 CreateSlider(FarmTab, "Flight Speed", 10, 80, 25, function(v) _G.FarmSpeed = v end)
 CreateSlider(FarmTab, "Fling Power", 50, 300, 100, function(v) _G.FlingPower = v end)
 
 CreateButton(FarmTab, "Force Rejoin", function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
 CreateButton(FarmTab, "Teleport to Map", TeleportToMap)
 CreateButton(FarmTab, "Teleport to Lobby", TeleportToLobby)
-CreateButton(FarmTab, "Reset Coin Counter", function() _G.CollectedCoins = 0 end)
+CreateButton(FarmTab, "Reset Coin", function() _G.CollectedCoins = 0 end)
 
--- ESP TAB
+-- ESP
 CreateToggle(EspTab, "Enable Roles ESP", false, function(s)
     _G.ESP = s
     if not s then for _, p in pairs(Players:GetPlayers()) do if p.Character and p.Character:FindFirstChild("ArtESP") then p.Character.ArtESP:Destroy() end end end
@@ -1029,8 +951,8 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- FAST WIN TAB
-CreateButton(WinTab, "Sheriff: Shoot Murderer", function()
+-- WIN
+CreateButton(WinTab, "Sheriff Shoot", function()
     local char = LocalPlayer.Character
     if not char then return end
     local gun = char:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
@@ -1059,7 +981,7 @@ CreateButton(WinTab, "Sheriff: Shoot Murderer", function()
     else Notify("Error", "Shoot remote not found!", 2) end
 end)
 
-CreateButton(WinTab, "Murderer: Kill All (AOE)", function()
+CreateButton(WinTab, "Murderer AOE", function()
     local char = LocalPlayer.Character
     if not char then return end
     local knife = char:FindFirstChild("Knife") or LocalPlayer.Backpack:FindFirstChild("Knife")
@@ -1076,7 +998,7 @@ CreateButton(WinTab, "Murderer: Kill All (AOE)", function()
     Notify("Win", "All killed!", 2)
 end)
 
-CreateButton(WinTab, "Teleport to Gun (+ return)", function()
+CreateButton(WinTab, "Teleport Gun", function()
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("HumanoidRootPart") then Notify("Error", "No character", 2) return end
     local oldCFrame = char.HumanoidRootPart.CFrame
@@ -1114,13 +1036,11 @@ CreateButton(WinTab, "Teleport to Gun (+ return)", function()
             break
         end
     until tick() - startTime > 2
-    if not itemGrabbed then Notify("Teleport", "Pickup timeout, returning...", 2) end
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char:PivotTo(oldCFrame)
-    end
+    if not itemGrabbed then Notify("Teleport", "Pickup timeout", 2) end
+    if char and char:FindFirstChild("HumanoidRootPart") then char:PivotTo(oldCFrame) end
 end)
 
--- Ручной аим (E/Q) – оставлен для совместимости
+-- Ручной аим E/Q
 local aimConn
 local function StartAim(target)
     if aimConn then aimConn:Disconnect() end
@@ -1153,10 +1073,10 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- TELEPORT TAB
-CreateButton(TPTab, "Teleport to Lobby", TeleportToLobby)
-CreateButton(TPTab, "Teleport to Map", TeleportToMap)
-CreateButton(TPTab, "Random Map Spawn", function()
+-- TP
+CreateButton(TPTab, "Lobby", TeleportToLobby)
+CreateButton(TPTab, "Map", TeleportToMap)
+CreateButton(TPTab, "Random Spawn", function()
     local char = LocalPlayer.Character
     if not char then return end
     local spawns = workspace:FindFirstChild("Normal"):FindFirstChild("Spawns")
@@ -1180,81 +1100,10 @@ CreateToggle(InfoTab, "RTX Graphics", false, function(s)
     end
 end)
 
-CreateButton(InfoTab, "FPS Unlocker (240)", function() setfpscap(240); Notify("FPS", "Cap set to 240", 2) end)
-
--- ==========================================
--- ДЕЙСТВИЯ ПЛАВАЮЩИХ КНОПОК
--- ==========================================
--- Aim Button включает автоаим + стрельбу
-AimButton.MouseButton1Click:Connect(function()
-    local newState = not (autoAimMurderer or autoAimSheriff)
-    autoAimMurderer = newState
-    autoAimSheriff = newState
-    _G.AutoShoot = newState
-    AutoAimLoop()
-    AimButton.BackgroundColor3 = newState and Color3.fromRGB(255, 80, 80) or Color3.fromRGB(120, 81, 255)
-    Notify("Aim", newState and "Auto Aim + Shoot ON" or "OFF", 2)
-end)
-
--- Farm Button переключает автофарм
-FarmButton.MouseButton1Click:Connect(function()
-    _G.AutoFarm = not _G.AutoFarm
-    FarmButton.BackgroundColor3 = _G.AutoFarm and Color3.fromRGB(255, 200, 50) or Color3.fromRGB(60, 200, 120)
-    if _G.AutoFarm then
-        Notify("Farm", "Started", 2)
-        if workspace:FindFirstChild("Lobby") then TeleportToMap() end
-        if not FarmLoopRunning then
-            FarmLoopRunning = true
-            task.spawn(function()
-                while _G.AutoFarm and FarmLoopRunning do
-                    pcall(function()
-                        if workspace:FindFirstChild("Lobby") and workspace:FindFirstChild("Normal") then TeleportToMap() end
-                        FarmCoins()
-                    end)
-                    task.wait(0.15)
-                end
-                FarmLoopRunning = false
-                TeleportToLobby()
-            end)
-        end
-    else
-        Notify("Farm", "Stopped", 2)
-        FarmLoopRunning = false
-        TeleportToLobby()
-    end
-end)
-
--- Fling Button мгновенно флингует всех игроков
-FlingButton.MouseButton1Click:Connect(function()
-    if FlingActive then
-        FlingActive = false
-        FlingButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-        Notify("Fling", "Stopped", 2)
-    else
-        -- Выбираем всех игроков для флинга
-        SelectAllFling(true)
-        FlingActive = true
-        FlingButton.BackgroundColor3 = Color3.fromRGB(255, 0, 0)
-        Notify("Fling", "Flinging all players!", 2)
-        OldPos = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") and LocalPlayer.Character.HumanoidRootPart.CFrame
-        task.spawn(function()
-            while FlingActive do
-                local targets = {}
-                for _, p in pairs(SelectedFlingTargets) do if p and p.Parent then table.insert(targets, p) end end
-                for _, p in ipairs(targets) do
-                    if not FlingActive then break end
-                    SkidFling(p)
-                    task.wait(0.1)
-                end
-                task.wait(0.5)
-            end
-            FlingButton.BackgroundColor3 = Color3.fromRGB(255, 140, 0)
-        end)
-    end
-end)
+CreateButton(InfoTab, "FPS 240", function() setfpscap(240); Notify("FPS", "Cap set to 240", 2) end)
 
 -- Запуск
 pcall(function()
     if Tabs[1] then Tabs[1].Btn.MouseButton1Click:Fire() end
-    Notify("ArtMM2 Hub", "Mobile Full Loaded!", 5)
+    Notify("ArtMM2 Hub", "Compact Loaded!", 5)
 end)
