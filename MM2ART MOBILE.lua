@@ -1,4 +1,4 @@
--- ArtMM2 Hub | Compact GUI (280x350) – All features, no floating buttons
+-- ArtMM2 Hub | MOBILE
 
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
