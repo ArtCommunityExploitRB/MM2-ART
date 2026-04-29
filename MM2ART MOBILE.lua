@@ -100,14 +100,14 @@ end
 -- КОНФИГУРАЦИЯ (компактный размер)
 -- ==========================================
 local UIConfig = {
-    MainWidth = 1080,
-    MainHeight = 1080,
-    SidebarWidth = 80,
-    ButtonHeight = 36,
-    FontSize = 13,
-    SliderHeight = 50,
-    ScrollThickness = 4,
-    TabBtnHeight = 36
+    MainWidth = 360,
+    MainHeight = 220,
+    SidebarWidth = 90,
+    ButtonHeight = 30,
+    FontSize = 11,
+    SliderHeight = 40,
+    ScrollThickness = 2,
+    TabBtnHeight = 30
 }
 
 local ArtMM2 = Instance.new("ScreenGui")
