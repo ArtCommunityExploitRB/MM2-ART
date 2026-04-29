@@ -100,8 +100,8 @@ end
 -- КОНФИГУРАЦИЯ (компактный размер)
 -- ==========================================
 local UIConfig = {
-    MainWidth = 360,
-    MainHeight = 220,
+    MainWidth = 550,
+    MainHeight = 550,
     SidebarWidth = 80,
     ButtonHeight = 36,
     FontSize = 13,
