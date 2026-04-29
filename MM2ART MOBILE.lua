@@ -100,14 +100,14 @@ end
 -- КОНФИГУРАЦИЯ (компактный размер)
 -- ==========================================
 local UIConfig = {
-    MainWidth = 360,
-    MainHeight = 220,
-    SidebarWidth = 90,
-    ButtonHeight = 30,
-    FontSize = 11,
-    SliderHeight = 40,
-    ScrollThickness = 2,
-    TabBtnHeight = 30
+    MainWidth = 420,        -- Оптимальная ширина для телефонов
+    MainHeight = 280,       -- Достаточная высота, чтобы видеть контент
+    SidebarWidth = 100,      -- Чуть шире для длинных названий вкладок
+    ButtonHeight = 38,      -- Кнопки стали выше, удобнее нажимать пальцем
+    FontSize = 14,          -- Стандартный читабельный размер шрифта
+    SliderHeight = 55,      -- Больше места для ползунка
+    ScrollThickness = 4,    -- Полоса прокрутки заметнее
+    TabBtnHeight = 38       -- Кнопки вкладок под размер основных кнопок
 }
 
 local ArtMM2 = Instance.new("ScreenGui")
