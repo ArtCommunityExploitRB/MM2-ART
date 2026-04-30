@@ -28,13 +28,12 @@ local _G = {
     AimKey = nil,
     AimTarget = nil,
     AutoFlingMurderer = false,
-    AutoFlingAll = false,
     FlingPower = 100,
     ShowRoleOnRoundStart = false,
     AutoShoot = false
 }
 
--- Notification system
+-- Notifications
 local function Notify(title, text, duration)
     duration = duration or 3
     local NotifFrame = Instance.new("Frame")
@@ -101,9 +100,7 @@ local UIConfig = {
     FontSize = 14,
     SliderHeight = 50,
     ScrollThickness = 3,
-    TabBtnHeight = 35,
-    StartMinimized = false,
-    FloatingHub = false
+    TabBtnHeight = 35
 }
 
 local ArtMM2 = Instance.new("ScreenGui")
@@ -346,7 +343,7 @@ local function CreateSlider(parent, text, min, max, default, callback)
 end
 
 -- ==========================================
--- INIT TABS (REMOVED TP)
+-- INIT TABS (including Spawn)
 -- ==========================================
 local InfoTab = CreateTab("Info")
 local PlayerTab = CreateTab("Player")
@@ -355,6 +352,7 @@ local EspTab = CreateTab("ESP")
 local WinTab = CreateTab("Win")
 local TargetTab = CreateTab("Target")
 local FlingTab = CreateTab("Fling")
+local SpawnTab = CreateTab("Spawn")
 
 -- INFO TAB
 local Avatar = Instance.new("ImageLabel", InfoTab)
@@ -391,31 +389,19 @@ local function CheckAndNotifyRole()
     if not LocalPlayer.Character then return end
     if workspace:FindFirstChild("Lobby") then return end
     local role = nil
-    if LocalPlayer.Backpack:FindFirstChild("Knife") or LocalPlayer.Character:FindFirstChild("Knife") then
-        role = "Murderer"
-    elseif LocalPlayer.Backpack:FindFirstChild("Gun") or LocalPlayer.Character:FindFirstChild("Gun") then
-        role = "Sheriff"
-    else
-        role = "Innocent"
-    end
+    if LocalPlayer.Backpack:FindFirstChild("Knife") or LocalPlayer.Character:FindFirstChild("Knife") then role = "Murderer"
+    elseif LocalPlayer.Backpack:FindFirstChild("Gun") or LocalPlayer.Character:FindFirstChild("Gun") then role = "Sheriff"
+    else role = "Innocent" end
     if role ~= lastRoleNotified then
         lastRoleNotified = role
         Notify("ROLE", "You are "..role.."!", 4)
     end
 end
-
-task.spawn(function()
-    while task.wait(1) do
-        pcall(CheckAndNotifyRole)
-    end
-end)
+task.spawn(function() while task.wait(1) do pcall(CheckAndNotifyRole) end end)
 
 CreateToggle(InfoTab, "Show Role On Round Start", false, function(s)
     _G.ShowRoleOnRoundStart = s
-    if s then
-        lastRoleNotified = nil
-        CheckAndNotifyRole()
-    end
+    if s then lastRoleNotified = nil; CheckAndNotifyRole() end
 end)
 
 -- PLAYER TAB
@@ -439,14 +425,13 @@ UserInputService.JumpRequest:Connect(function()
         LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
-
 RunService.Stepped:Connect(function()
     if _G.Noclip and LocalPlayer.Character then
         for _, p in pairs(LocalPlayer.Character:GetDescendants()) do if p:IsA("BasePart") and p.CanCollide then p.CanCollide = false end end
     end
 end)
 
--- TARGET TAB (improved aim)
+-- TARGET TAB (instant snap aim)
 local TargetListFrame = Instance.new("Frame", TargetTab)
 TargetListFrame.Size = UDim2.new(1, 0, 0, 180)
 TargetListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
@@ -500,7 +485,7 @@ CreateButton(TargetTab, "Teleport Behind", function()
     else Notify("Error", "No target", 2) end
 end)
 
--- Auto Aim (improved smooth aim)
+-- Instant Auto Aim
 local autoAimMurderer = false
 local autoAimSheriff = false
 local autoAimConn
@@ -512,14 +497,14 @@ local function AutoAimLoop()
         local target = nil
         if autoAimMurderer then
             for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Head") then
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
                     if p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife") then target = p break end
                 end
             end
         end
         if not target and autoAimSheriff then
             for _, p in pairs(Players:GetPlayers()) do
-                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") and p.Character:FindFirstChild("Head") then
+                if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") then
                     if p.Backpack:FindFirstChild("Gun") or p.Character:FindFirstChild("Gun") then target = p break end
                 end
             end
@@ -527,11 +512,7 @@ local function AutoAimLoop()
         
         local cam = workspace.CurrentCamera
         if target and target.Character and target.Character:FindFirstChild("Head") then
-            local targetPos = target.Character.Head.Position
-            -- Smoothly interpolate camera to look at target's head
-            local desiredCF = CFrame.lookAt(cam.CFrame.Position, targetPos)
-            cam.CFrame = cam.CFrame:Lerp(desiredCF, 0.2)  -- increased lerp for snappier aim
-            
+            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, target.Character.Head.Position) -- instant snap
             cam.FieldOfView = _G.AutoShoot and 30 or 70
             if _G.AutoShoot and LocalPlayer.Character then
                 local gun = LocalPlayer.Character:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
@@ -541,7 +522,7 @@ local function AutoAimLoop()
                         for _, v in pairs(ReplicatedStorage:GetDescendants()) do if v:IsA("RemoteEvent") and (v.Name=="ShootGun" or v.Name=="Gun") then shootRemote=v; break end end
                     end
                     if shootRemote then
-                        shootRemote:FireServer(target.Character.HumanoidRootPart.Position)
+                        shootRemote:FireServer(target.Character.Head.Position)
                     end
                 end
             end
@@ -555,15 +536,14 @@ CreateToggle(TargetTab, "Auto Aim Murderer", false, function(s) autoAimMurderer 
 CreateToggle(TargetTab, "Auto Aim Sheriff", false, function(s) autoAimSheriff = s; AutoAimLoop() end)
 CreateToggle(TargetTab, "Auto Shoot (Gun)", false, function(s) _G.AutoShoot = s; if not s then workspace.CurrentCamera.FieldOfView = 70 end end)
 
--- Manual Aim (E/Q) - fixed
+-- Manual aim E/Q instant
 local aimConn
 local function StartAim(target)
     if aimConn then aimConn:Disconnect() end
     aimConn = RunService.RenderStepped:Connect(function()
         local cam = workspace.CurrentCamera
         if target and target.Character and target.Character:FindFirstChild("Head") then
-            local desiredCF = CFrame.lookAt(cam.CFrame.Position, target.Character.Head.Position)
-            cam.CFrame = cam.CFrame:Lerp(desiredCF, 0.2)
+            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, target.Character.Head.Position) -- instant
         end
     end)
 end
@@ -592,13 +572,14 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- FLING TAB (fixed fling function)
+-- ==========================================
+-- FLING TAB (working noclip fling)
+-- ==========================================
 local FlingActive = false
 local SelectedFlingTargets = {}
 local FlingCheckboxes = {}
 local OldPos, FPDH = nil, workspace.FallenPartsDestroyHeight
 
--- Improved fling using simpler approach
 local function SkidFling(targetPlayer)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("Humanoid") then return end
@@ -612,7 +593,9 @@ local function SkidFling(targetPlayer)
     local tHead = tChar:FindFirstChild("Head")
     local accessory = tChar:FindFirstChildOfClass("Accessory")
     local handle = accessory and accessory:FindFirstChild("Handle")
+
     if tHum.Sit then return Notify("Fling", targetPlayer.Name.." is sitting", 2) end
+
     local targetPart = tRoot or tHead or handle
     if not targetPart then return end
 
@@ -627,30 +610,38 @@ local function SkidFling(targetPlayer)
     workspace.CurrentCamera.CameraSubject = tHead or handle or tHum
     workspace.FallenPartsDestroyHeight = 0/0
 
-    -- Simple body velocity fling
     local bv = Instance.new("BodyVelocity")
     bv.Parent = root
-    bv.MaxForce = Vector3.new(1,1,1) * 1e9
-    bv.Velocity = Vector3.new(0,0,0)
+    bv.Velocity = Vector3.zero
+    bv.MaxForce = Vector3.new(9e9,9e9,9e9)
 
     humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
 
     local power = _G.FlingPower / 100
+    local function FPos(basePart, pos, ang)
+        root.CFrame = basePart.CFrame * pos * ang
+        char:SetPrimaryPartCFrame(root.CFrame)
+        root.Velocity = Vector3.new(9e7 * power, 9e7*10 * power, 9e7 * power)
+        root.RotVelocity = Vector3.new(9e8 * power, 9e8 * power, 9e8 * power)
+    end
+
     local start = tick()
+    local angle = 0
     repeat
         if not FlingActive then break end
-        if not tChar or not tChar:FindFirstChildOfClass("Humanoid") then break end
-        if not targetPart.Parent then break end
-
-        -- Position right on top of target part with offset
-        root.CFrame = targetPart.CFrame * CFrame.new(0, 1.5, 0) * CFrame.Angles(0, 0, math.rad(90))
-        char:SetPrimaryPartCFrame(root.CFrame)
-
-        -- Apply large velocity
-        root.Velocity = Vector3.new(0, 9e7 * power, 0) + Vector3.new((math.random()-0.5)*1e6, 0, (math.random()-0.5)*1e6)
-        root.RotVelocity = Vector3.new(9e8, 9e8, 9e8) * power
-
-        task.wait()
+        if not tHum or tHum.Health <= 0 or not targetPart.Parent then break end
+        if targetPart.Velocity.Magnitude < 50 then
+            angle = angle + 100
+            FPos(targetPart, CFrame.new(0,1.5,0) + tHum.MoveDirection * targetPart.Velocity.Magnitude/1.25, CFrame.Angles(math.rad(angle),0,0))
+            task.wait()
+            FPos(targetPart, CFrame.new(0,-1.5,0) + tHum.MoveDirection * targetPart.Velocity.Magnitude/1.25, CFrame.Angles(math.rad(angle),0,0))
+            task.wait()
+        else
+            FPos(targetPart, CFrame.new(0,1.5, tHum.WalkSpeed * power), CFrame.Angles(math.rad(90),0,0))
+            task.wait()
+            FPos(targetPart, CFrame.new(0,-1.5,-tHum.WalkSpeed * power), CFrame.Angles(0,0,0))
+            task.wait()
+        end
     until tick() - start > 2
 
     bv:Destroy()
@@ -662,7 +653,6 @@ local function SkidFling(targetPlayer)
         part.CanCollide = false
     end
 
-    -- Return to original position
     if OldPos then
         repeat
             root.CFrame = OldPos * CFrame.new(0,0.5,0)
@@ -791,7 +781,7 @@ end)
 CreateButton(FlingTab, "Stop Fling", function() FlingActive = false; Notify("Fling", "Stopped", 2) end)
 
 -- ==========================================
--- AUTO FARM + AUTO WIN + AUTO FLING
+-- AUTO FARM (improved collection + murderer fling)
 -- ==========================================
 local RejoinConnection, FarmLoopRunning = false, nil
 
@@ -825,6 +815,24 @@ local function RejoinServer()
     Notify("Auto Farm", "Kicked detected! Rejoining...", 5)
     task.wait(2)
     pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
+end
+
+-- Fast local collection
+local function CollectNearbyCoins(root, allCoins, range)
+    local collected = false
+    for _, coin in pairs(allCoins) do
+        if coin.Parent and (root.Position - coin.Position).Magnitude <= range then
+            local tween = TweenService:Create(root, TweenInfo.new(0.1), {CFrame = CFrame.new(coin.Position + Vector3.new(0,2,0))})
+            tween:Play()
+            tween.Completed:Wait()
+            if coin.Parent then
+                _G.CollectedCoins += 1
+                collected = true
+            end
+        end
+        if not _G.AutoFarm then return false end
+    end
+    return collected
 end
 
 local function FlyToCoin(coin)
@@ -865,10 +873,19 @@ local function FarmCoins()
         end
     end
     if #coins == 0 then
-        if _G.AutoFlingMurderer or _G.AutoFlingAll then TryAutoFling() end
+        if _G.AutoFlingMurderer then TryAutoFlingMurderer() end
         if _G.AutoWin then TryAutoWin() end
         return
     end
+
+    -- Quick local grab if multiple coins nearby
+    local nearbyRange = 15
+    if #coins > 1 then
+        local done = CollectNearbyCoins(root, coins, nearbyRange)
+        if done then return end
+    end
+
+    -- Fly to the closest coin
     table.sort(coins, function(a,b) return (root.Position - a.Position).Magnitude < (root.Position - b.Position).Magnitude end)
     FlyToCoin(coins[1])
 end
@@ -923,33 +940,17 @@ function TryAutoWin()
     if _G.AutoFarm then TeleportToMap() end
 end
 
-function TryAutoFling()
-    if _G.AutoFlingAll then
-        local targets = {}
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
-                table.insert(targets, p)
-            end
-        end
-        if #targets > 0 then
-            Notify("Auto Fling", "Flinging all "..#targets.." players!", 2)
-            for _, p in ipairs(targets) do
-                SkidFling(p)
-                task.wait(0.3)
-            end
-        end
-    elseif _G.AutoFlingMurderer then
-        local murderer = nil
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then murderer = p; break end
-        end
-        if not murderer then return end
-        Notify("Auto Fling", "Flinging murderer", 2)
-        for _=1,5 do
-            if not _G.AutoFarm then break end
-            SkidFling(murderer)
-            task.wait(0.3)
-        end
+function TryAutoFlingMurderer()
+    local murderer = nil
+    for _, p in pairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then murderer = p; break end
+    end
+    if not murderer then return end
+    Notify("Auto Fling", "Flinging murderer", 2)
+    for _=1,3 do
+        if not _G.AutoFarm then break end
+        SkidFling(murderer)
+        task.wait(0.3)
     end
 end
 
@@ -996,7 +997,6 @@ CreateToggle(FarmTab, "Auto Rejoin on Kick", true, function(s) _G.AutoRejoin = s
 CreateToggle(FarmTab, "Noclip Farm", false, function(s) _G.NoclipFarm = s end)
 CreateToggle(FarmTab, "Auto Win (after farm)", false, function(s) _G.AutoWin = s end)
 CreateToggle(FarmTab, "Auto Fling Murderer", false, function(s) _G.AutoFlingMurderer = s end)
-CreateToggle(FarmTab, "Auto Fling ALL (after farm)", false, function(s) _G.AutoFlingAll = s end)
 CreateSlider(FarmTab, "Flight Speed", 10, 80, 25, function(v) _G.FarmSpeed = v end)
 CreateSlider(FarmTab, "Fling Power", 50, 300, 100, function(v) _G.FlingPower = v end)
 
@@ -1005,7 +1005,9 @@ CreateButton(FarmTab, "Teleport to Map", TeleportToMap)
 CreateButton(FarmTab, "Teleport to Lobby", TeleportToLobby)
 CreateButton(FarmTab, "Reset Coin Counter", function() _G.CollectedCoins = 0 end)
 
+-- ==========================================
 -- ESP TAB
+-- ==========================================
 CreateToggle(EspTab, "Enable Roles ESP", false, function(s)
     _G.ESP = s
     if not s then for _, p in pairs(Players:GetPlayers()) do if p.Character and p.Character:FindFirstChild("ArtESP") then p.Character.ArtESP:Destroy() end end end
@@ -1028,7 +1030,9 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- FAST WIN TAB
+-- ==========================================
+-- WIN TAB
+-- ==========================================
 CreateButton(WinTab, "Sheriff: Shoot Murderer", function()
     local char = LocalPlayer.Character
     if not char then return end
@@ -1119,7 +1123,113 @@ CreateButton(WinTab, "Teleport to Gun (+ return)", function()
     end
 end)
 
--- RTX
+-- ==========================================
+-- SPAWN SKINS TAB
+-- ==========================================
+local SkinsList = {
+    Knife = {"Default", "Chroma", "Candy", "Flames", "Ice", "Gold", "Laser", "Ghost", "Shadow", "Mummy", "Void", "Spider", "Snowflake", "Blood", "Neon", "Rainbow"},
+    Gun = {"Default", "Chroma", "Candy", "Flames", "Ice", "Gold", "Laser", "Ghost", "Shadow", "Mummy", "Void", "Spider", "Snowflake", "Neon", "Rainbow"}
+}
+
+local SelectedSkinType = "Knife"
+local SelectedSkinName = "Default"
+
+local function ApplySkin()
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if not remotes then return Notify("Error", "Remotes not found", 2) end
+    
+    if SelectedSkinType == "Knife" then
+        local remote = remotes:FindFirstChild("SetActiveKnifeSkin")
+        if remote then
+            remote:FireServer(SelectedSkinName)
+            Notify("Skin", "Knife skin: "..SelectedSkinName, 2)
+        else
+            Notify("Error", "Knife remote missing", 2)
+        end
+    else
+        local remote = remotes:FindFirstChild("SetActiveGunSkin")
+        if remote then
+            remote:FireServer(SelectedSkinName)
+            Notify("Skin", "Gun skin: "..SelectedSkinName, 2)
+        else
+            Notify("Error", "Gun remote missing", 2)
+        end
+    end
+end
+
+-- UI elements for Spawn tab
+local SpawnLabel = Instance.new("TextLabel", SpawnTab)
+SpawnLabel.Size = UDim2.new(1, 0, 0, 25)
+SpawnLabel.BackgroundTransparency = 1
+SpawnLabel.Text = "Select Weapon & Skin"
+SpawnLabel.TextColor3 = Color3.fromRGB(255,255,255)
+SpawnLabel.Font = Enum.Font.GothamBold
+SpawnLabel.TextSize = UIConfig.FontSize
+SpawnLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Dropdown for weapon type
+local WeaponBtn = Instance.new("TextButton", SpawnTab)
+WeaponBtn.Size = UDim2.new(1, 0, 0, UIConfig.ButtonHeight)
+WeaponBtn.BackgroundColor3 = Color3.fromRGB(40,40,45)
+WeaponBtn.Text = "Weapon: Knife"
+WeaponBtn.TextColor3 = Color3.fromRGB(255,255,255)
+WeaponBtn.Font = Enum.Font.GothamSemibold
+WeaponBtn.TextSize = UIConfig.FontSize
+Instance.new("UICorner", WeaponBtn).CornerRadius = UDim.new(0,6)
+
+local function ToggleWeaponType()
+    SelectedSkinType = (SelectedSkinType == "Knife") and "Gun" or "Knife"
+    WeaponBtn.Text = "Weapon: "..SelectedSkinType
+    UpdateSkinList()
+end
+
+WeaponBtn.MouseButton1Click:Connect(ToggleWeaponType)
+
+-- Skin list
+local SkinListFrame = Instance.new("Frame", SpawnTab)
+SkinListFrame.Size = UDim2.new(1, 0, 0, 120)
+SkinListFrame.BackgroundColor3 = Color3.fromRGB(40,40,45)
+Instance.new("UICorner", SkinListFrame).CornerRadius = UDim.new(0,6)
+
+local SkinScroll = Instance.new("ScrollingFrame", SkinListFrame)
+SkinScroll.Size = UDim2.new(1, -10, 1, -10)
+SkinScroll.Position = UDim2.new(0,5,0,5)
+SkinScroll.BackgroundTransparency = 1
+SkinScroll.ScrollBarThickness = UIConfig.ScrollThickness
+SkinScroll.CanvasSize = UDim2.new(0,0,0,0)
+SkinScroll.BorderSizePixel = 0
+
+local SkinLayout = Instance.new("UIListLayout", SkinScroll)
+SkinLayout.Padding = UDim.new(0,4)
+SkinLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+local function UpdateSkinList()
+    for _, child in pairs(SkinScroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
+    local skins = SkinsList[SelectedSkinType]
+    for _, skinName in pairs(skins) do
+        local skinBtn = Instance.new("TextButton", SkinScroll)
+        skinBtn.Size = UDim2.new(1,0,0,28)
+        skinBtn.BackgroundColor3 = (skinName == SelectedSkinName) and Color3.fromRGB(120,81,255) or Color3.fromRGB(50,50,55)
+        skinBtn.Text = skinName
+        skinBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        skinBtn.Font = Enum.Font.Gotham
+        skinBtn.TextSize = UIConfig.FontSize
+        Instance.new("UICorner", skinBtn).CornerRadius = UDim.new(0,4)
+        skinBtn.MouseButton1Click:Connect(function()
+            SelectedSkinName = skinName
+            UpdateSkinList()
+        end)
+    end
+    SkinScroll.CanvasSize = UDim2.new(0,0,0,SkinLayout.AbsoluteContentSize.Y + 5)
+end
+
+UpdateSkinList()
+
+CreateButton(SpawnTab, "Give Skin", ApplySkin)
+
+-- RTX toggle
 CreateToggle(InfoTab, "RTX Graphics", false, function(s)
     _G.RTXEnabled = s
     if s then
