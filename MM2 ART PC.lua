@@ -572,14 +572,13 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- ==========================================
--- FLING TAB (working noclip fling)
--- ==========================================
+-- FLING TAB (fixed fling function)
 local FlingActive = false
 local SelectedFlingTargets = {}
 local FlingCheckboxes = {}
 local OldPos, FPDH = nil, workspace.FallenPartsDestroyHeight
 
+-- Improved fling using simpler approach
 local function SkidFling(targetPlayer)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("Humanoid") then return end
@@ -593,9 +592,7 @@ local function SkidFling(targetPlayer)
     local tHead = tChar:FindFirstChild("Head")
     local accessory = tChar:FindFirstChildOfClass("Accessory")
     local handle = accessory and accessory:FindFirstChild("Handle")
-
     if tHum.Sit then return Notify("Fling", targetPlayer.Name.." is sitting", 2) end
-
     local targetPart = tRoot or tHead or handle
     if not targetPart then return end
 
@@ -610,38 +607,30 @@ local function SkidFling(targetPlayer)
     workspace.CurrentCamera.CameraSubject = tHead or handle or tHum
     workspace.FallenPartsDestroyHeight = 0/0
 
+    -- Simple body velocity fling
     local bv = Instance.new("BodyVelocity")
     bv.Parent = root
-    bv.Velocity = Vector3.zero
-    bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+    bv.MaxForce = Vector3.new(1,1,1) * 1e9
+    bv.Velocity = Vector3.new(0,0,0)
 
     humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
 
     local power = _G.FlingPower / 100
-    local function FPos(basePart, pos, ang)
-        root.CFrame = basePart.CFrame * pos * ang
-        char:SetPrimaryPartCFrame(root.CFrame)
-        root.Velocity = Vector3.new(9e7 * power, 9e7*10 * power, 9e7 * power)
-        root.RotVelocity = Vector3.new(9e8 * power, 9e8 * power, 9e8 * power)
-    end
-
     local start = tick()
-    local angle = 0
     repeat
         if not FlingActive then break end
-        if not tHum or tHum.Health <= 0 or not targetPart.Parent then break end
-        if targetPart.Velocity.Magnitude < 50 then
-            angle = angle + 100
-            FPos(targetPart, CFrame.new(0,1.5,0) + tHum.MoveDirection * targetPart.Velocity.Magnitude/1.25, CFrame.Angles(math.rad(angle),0,0))
-            task.wait()
-            FPos(targetPart, CFrame.new(0,-1.5,0) + tHum.MoveDirection * targetPart.Velocity.Magnitude/1.25, CFrame.Angles(math.rad(angle),0,0))
-            task.wait()
-        else
-            FPos(targetPart, CFrame.new(0,1.5, tHum.WalkSpeed * power), CFrame.Angles(math.rad(90),0,0))
-            task.wait()
-            FPos(targetPart, CFrame.new(0,-1.5,-tHum.WalkSpeed * power), CFrame.Angles(0,0,0))
-            task.wait()
-        end
+        if not tChar or not tChar:FindFirstChildOfClass("Humanoid") then break end
+        if not targetPart.Parent then break end
+
+        -- Position right on top of target part with offset
+        root.CFrame = targetPart.CFrame * CFrame.new(0, 1.5, 0) * CFrame.Angles(0, 0, math.rad(90))
+        char:SetPrimaryPartCFrame(root.CFrame)
+
+        -- Apply large velocity
+        root.Velocity = Vector3.new(0, 9e7 * power, 0) + Vector3.new((math.random()-0.5)*1e6, 0, (math.random()-0.5)*1e6)
+        root.RotVelocity = Vector3.new(9e8, 9e8, 9e8) * power
+
+        task.wait()
     until tick() - start > 2
 
     bv:Destroy()
@@ -653,6 +642,7 @@ local function SkidFling(targetPlayer)
         part.CanCollide = false
     end
 
+    -- Return to original position
     if OldPos then
         repeat
             root.CFrame = OldPos * CFrame.new(0,0.5,0)
