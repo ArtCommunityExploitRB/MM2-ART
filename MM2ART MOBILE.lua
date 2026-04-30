@@ -1,5 +1,4 @@
--- ArtMM2 Hub | MOBILE
-
+-- ArtMM2 Hub | MOBILE (Fixed – PC fling, clear UI)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -14,7 +13,6 @@ local LocalPlayer = Players.LocalPlayer
 
 if CoreGui:FindFirstChild("ArtMM2") then CoreGui.ArtMM2:Destroy() end
 
--- Глобальные настройки
 local _G = {
     AutoFarm = false,
     ESP = false,
@@ -36,9 +34,7 @@ local _G = {
     AutoShoot = false
 }
 
--- ==========================================
--- СИСТЕМА УВЕДОМЛЕНИЙ
--- ==========================================
+-- Notifications
 local function Notify(title, text, duration)
     duration = duration or 3
     local NotifFrame = Instance.new("Frame")
@@ -96,18 +92,16 @@ local function Notify(title, text, duration)
     end)
 end
 
--- ==========================================
--- КОНФИГУРАЦИЯ (компактный размер)
--- ==========================================
+-- Mobile UI configuration (similar to PC, scaled)
 local UIConfig = {
-    MainWidth = 320,        -- Чуть уже (было 350)
-    MainHeight = 380,       -- Высоту оставили (уже норм)
-    SidebarWidth = 100,     -- Немного сузили под новое окно
-    ButtonHeight = 40,      -- Легкое уменьшение
-    FontSize = 13,          -- Чуть компактнее
-    SliderHeight = 55,      -- Немного меньше
-    ScrollThickness = 4,    -- Оставили как есть
-    TabBtnHeight = 38       -- Пропорционально уменьшено
+    MainWidth = 480,
+    MainHeight = 400,
+    SidebarWidth = 130,
+    ButtonHeight = 38,
+    FontSize = 13,
+    SliderHeight = 55,
+    ScrollThickness = 4,
+    TabBtnHeight = 36
 }
 
 local ArtMM2 = Instance.new("ScreenGui")
@@ -118,7 +112,7 @@ ArtMM2.ResetOnSpawn = false
 local Main = Instance.new("Frame", ArtMM2)
 Main.Name = "MainFrame"
 Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-Main.Position = UDim2.new(0.5, -UIConfig.MainWidth/2, 0.5, -UIConfig.MainHeight/2)
+Main.Position = UDim2.new(0.5, -UIConfig.MainWidth/2, 0.4, -UIConfig.MainHeight/2)
 Main.Size = UDim2.new(0, UIConfig.MainWidth, 0, UIConfig.MainHeight)
 Main.ClipsDescendants = true
 Instance.new("UICorner", Main).CornerRadius = UDim.new(0, 10)
@@ -134,7 +128,7 @@ local TitleLabel = Instance.new("TextLabel", TopBar)
 TitleLabel.Text = "ARTMM2"
 TitleLabel.Font = Enum.Font.GothamBold
 TitleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-TitleLabel.TextSize = UIConfig.FontSize + 4
+TitleLabel.TextSize = 16
 TitleLabel.Position = UDim2.new(0, 15, 0, 0)
 TitleLabel.Size = UDim2.new(0, 200, 1, 0)
 TitleLabel.BackgroundTransparency = 1
@@ -146,7 +140,7 @@ CloseBtn.Position = UDim2.new(1, -40, 0, 0)
 CloseBtn.BackgroundTransparency = 1
 CloseBtn.Text = "X"
 CloseBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-CloseBtn.TextSize = UIConfig.FontSize + 6
+CloseBtn.TextSize = 18
 CloseBtn.Font = Enum.Font.GothamBold
 
 local MinBtn = Instance.new("TextButton", TopBar)
@@ -155,7 +149,7 @@ MinBtn.Position = UDim2.new(1, -80, 0, 0)
 MinBtn.BackgroundTransparency = 1
 MinBtn.Text = "—"
 MinBtn.TextColor3 = Color3.fromRGB(200, 200, 200)
-MinBtn.TextSize = UIConfig.FontSize + 6
+MinBtn.TextSize = 18
 MinBtn.Font = Enum.Font.GothamBold
 
 local Sidebar = Instance.new("ScrollingFrame", Main)
@@ -184,7 +178,7 @@ MinBtn.MouseButton1Click:Connect(function()
 end)
 CloseBtn.MouseButton1Click:Connect(function() ArtMM2:Destroy() end)
 
--- Перетаскивание
+-- Drag support
 local dragToggle, dragStart, startPos
 TopBar.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
@@ -203,7 +197,7 @@ UserInputService.InputEnded:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragToggle = false end
 end)
 
--- Вкладки
+-- Tab creation (same as PC)
 local Tabs = {}
 local function CreateTab(name)
     local TabBtn = Instance.new("TextButton", Sidebar)
@@ -222,7 +216,7 @@ local function CreateTab(name)
     Page.Visible = false
     Page.ScrollBarThickness = UIConfig.ScrollThickness
     Page.BorderSizePixel = 0
-    
+
     local layout = Instance.new("UIListLayout", Page)
     layout.Padding = UDim.new(0, 8)
     layout.SortOrder = Enum.SortOrder.LayoutOrder
@@ -252,7 +246,7 @@ local function CreateButton(parent, text, callback)
     Btn.Font = Enum.Font.GothamSemibold
     Btn.TextSize = UIConfig.FontSize
     Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
-    
+
     Btn.MouseButton1Click:Connect(function()
         TweenService:Create(Btn, TweenInfo.new(0.1), {BackgroundColor3 = Color3.fromRGB(120, 81, 255)}):Play()
         task.wait(0.1)
@@ -350,7 +344,7 @@ local function CreateSlider(parent, text, min, max, default, callback)
 end
 
 -- ==========================================
--- ВКЛАДКИ
+-- INIT TABS (no TP, same as PC)
 -- ==========================================
 local InfoTab = CreateTab("Info")
 local PlayerTab = CreateTab("Player")
@@ -359,19 +353,18 @@ local EspTab = CreateTab("ESP")
 local WinTab = CreateTab("Win")
 local TargetTab = CreateTab("Target")
 local FlingTab = CreateTab("Fling")
-local TPTab = CreateTab("TP")
 
 -- INFO TAB
 local Avatar = Instance.new("ImageLabel", InfoTab)
-Avatar.Size = UDim2.new(0, 60, 0, 60)
-Avatar.Position = UDim2.new(0.5, -30, 0, 10)
+Avatar.Size = UDim2.new(0, 70, 0, 70)
+Avatar.Position = UDim2.new(0.5, -35, 0, 10)
 Avatar.Image = Players:GetUserThumbnailAsync(LocalPlayer.UserId, Enum.ThumbnailType.HeadShot, Enum.ThumbnailSize.Size420x420)
 Avatar.BackgroundTransparency = 1
 Instance.new("UICorner", Avatar).CornerRadius = UDim.new(1, 0)
 
 local InfoText = Instance.new("TextLabel", InfoTab)
-InfoText.Size = UDim2.new(1, 0, 0, 100)
-InfoText.Position = UDim2.new(0, 0, 0, 80)
+InfoText.Size = UDim2.new(1, 0, 0, 120)
+InfoText.Position = UDim2.new(0, 0, 0, 90)
 InfoText.BackgroundTransparency = 1
 InfoText.TextColor3 = Color3.fromRGB(220, 220, 220)
 InfoText.Font = Enum.Font.Gotham
@@ -385,7 +378,7 @@ task.spawn(function()
         local role = "Innocent"
         if LocalPlayer.Backpack:FindFirstChild("Knife") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Knife")) then role = "Murderer"
         elseif LocalPlayer.Backpack:FindFirstChild("Gun") or (LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Gun")) then role = "Sheriff" end
-        InfoText.Text = string.format("%s\nRole: %s\nPing: %sms\nCoins: %s", LocalPlayer.Name, role, ping, _G.CollectedCoins)
+        InfoText.Text = string.format("%s\n@%s\nRole: %s\nPing: %sms\nCoins: %s", LocalPlayer.DisplayName, LocalPlayer.Name, role, ping, _G.CollectedCoins)
     end
 end)
 
@@ -436,7 +429,7 @@ end)
 
 -- TARGET TAB
 local TargetListFrame = Instance.new("Frame", TargetTab)
-TargetListFrame.Size = UDim2.new(1, 0, 0, 120)
+TargetListFrame.Size = UDim2.new(1, 0, 0, 130)
 TargetListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 Instance.new("UICorner", TargetListFrame).CornerRadius = UDim.new(0, 6)
 local TargetScrolling = Instance.new("ScrollingFrame", TargetListFrame)
@@ -457,7 +450,7 @@ local function UpdateTargetList()
     for _, p in pairs(Players:GetPlayers()) do
         if p ~= LocalPlayer then
             local btn = Instance.new("TextButton")
-            btn.Size = UDim2.new(1,0,0,28)
+            btn.Size = UDim2.new(1,0,0,30)
             btn.BackgroundColor3 = Color3.fromRGB(50,50,55)
             btn.Text = p.Name
             btn.TextColor3 = Color3.fromRGB(255,255,255)
@@ -484,6 +477,7 @@ CreateButton(TargetTab, "Teleport Behind", function()
     else Notify("Error", "No target", 2) end
 end)
 
+-- Auto aim (improved smooth)
 local autoAimMurderer = false
 local autoAimSheriff = false
 local autoAimConn
@@ -506,9 +500,10 @@ local function AutoAimLoop()
                 end
             end
         end
-        if target and target.Character and target.Character:FindFirstChild("Head") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(LocalPlayer.Character.Head.Position, target.Character.Head.Position)
-            workspace.CurrentCamera.FieldOfView = _G.AutoShoot and 30 or 70
+        local cam = workspace.CurrentCamera
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            cam.CFrame = cam.CFrame:Lerp(CFrame.lookAt(cam.CFrame.Position, target.Character.Head.Position), 0.2)
+            cam.FieldOfView = _G.AutoShoot and 30 or 70
             if _G.AutoShoot and LocalPlayer.Character then
                 local gun = LocalPlayer.Character:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
                 if gun then
@@ -520,7 +515,7 @@ local function AutoAimLoop()
                 end
             end
         else
-            workspace.CurrentCamera.FieldOfView = 70
+            cam.FieldOfView = 70
         end
     end)
 end
@@ -528,7 +523,42 @@ CreateToggle(TargetTab, "Auto Aim Murderer", false, function(s) autoAimMurderer 
 CreateToggle(TargetTab, "Auto Aim Sheriff", false, function(s) autoAimSheriff = s; AutoAimLoop() end)
 CreateToggle(TargetTab, "Auto Shoot (Gun)", false, function(s) _G.AutoShoot = s; if not s then workspace.CurrentCamera.FieldOfView = 70 end end)
 
--- FLING TAB
+-- Manual aim E/Q
+local aimConn
+local function StartAim(target)
+    if aimConn then aimConn:Disconnect() end
+    aimConn = RunService.RenderStepped:Connect(function()
+        if target and target.Character and target.Character:FindFirstChild("Head") then
+            workspace.CurrentCamera.CFrame = workspace.CurrentCamera.CFrame:Lerp(CFrame.lookAt(workspace.CurrentCamera.CFrame.Position, target.Character.Head.Position), 0.2)
+        end
+    end)
+end
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.KeyCode == Enum.KeyCode.E then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then
+                _G.AimTarget = p; _G.AimKey = "E"; StartAim(p); return
+            end
+        end
+    elseif input.KeyCode == Enum.KeyCode.Q then
+        for _, p in pairs(Players:GetPlayers()) do
+            if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("Head") and (p.Backpack:FindFirstChild("Gun") or p.Character:FindFirstChild("Gun")) then
+                _G.AimTarget = p; _G.AimKey = "Q"; StartAim(p); return
+            end
+        end
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if (input.KeyCode == Enum.KeyCode.E and _G.AimKey=="E") or (input.KeyCode == Enum.KeyCode.Q and _G.AimKey=="Q") then
+        if aimConn then aimConn:Disconnect(); aimConn = nil end
+        _G.AimKey = nil; _G.AimTarget = nil
+    end
+end)
+
+-- ==========================================
+-- ORIGINAL PC FLING (working and stable)
+-- ==========================================
 local FlingActive = false
 local SelectedFlingTargets = {}
 local FlingCheckboxes = {}
@@ -547,9 +577,12 @@ local function SkidFling(targetPlayer)
     local tHead = tChar:FindFirstChild("Head")
     local accessory = tChar:FindFirstChildOfClass("Accessory")
     local handle = accessory and accessory:FindFirstChild("Handle")
+
     if tHum.Sit then return Notify("Fling", targetPlayer.Name.." is sitting", 2) end
+
     local targetPart = tRoot or tHead or handle
     if not targetPart then return end
+
     local targetNoclip = {}
     for _, part in pairs(tChar:GetDescendants()) do
         if part:IsA("BasePart") and part.CanCollide == false then
@@ -557,13 +590,17 @@ local function SkidFling(targetPlayer)
             part.CanCollide = true
         end
     end
+
     workspace.CurrentCamera.CameraSubject = tHead or handle or tHum
     workspace.FallenPartsDestroyHeight = 0/0
+
     local bv = Instance.new("BodyVelocity")
     bv.Parent = root
     bv.Velocity = Vector3.zero
     bv.MaxForce = Vector3.new(9e9,9e9,9e9)
+
     humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, false)
+
     local power = _G.FlingPower / 100
     local function FPos(basePart, pos, ang)
         root.CFrame = basePart.CFrame * pos * ang
@@ -571,6 +608,7 @@ local function SkidFling(targetPlayer)
         root.Velocity = Vector3.new(9e7 * power, 9e7*10 * power, 9e7 * power)
         root.RotVelocity = Vector3.new(9e8 * power, 9e8 * power, 9e8 * power)
     end
+
     local start = tick()
     local angle = 0
     repeat
@@ -589,11 +627,16 @@ local function SkidFling(targetPlayer)
             task.wait()
         end
     until tick() - start > 2
+
     bv:Destroy()
     humanoid:SetStateEnabled(Enum.HumanoidStateType.Seated, true)
     workspace.CurrentCamera.CameraSubject = humanoid
     workspace.FallenPartsDestroyHeight = FPDH
-    for _, part in pairs(targetNoclip) do part.CanCollide = false end
+
+    for _, part in pairs(targetNoclip) do
+        part.CanCollide = false
+    end
+
     if OldPos then
         repeat
             root.CFrame = OldPos * CFrame.new(0,0.5,0)
@@ -606,7 +649,7 @@ local function SkidFling(targetPlayer)
 end
 
 local FlingListFrame = Instance.new("Frame", FlingTab)
-FlingListFrame.Size = UDim2.new(1, 0, 0, 120)
+FlingListFrame.Size = UDim2.new(1, 0, 0, 130)
 FlingListFrame.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
 Instance.new("UICorner", FlingListFrame).CornerRadius = UDim.new(0, 6)
 local FlingScroll = Instance.new("ScrollingFrame", FlingListFrame)
@@ -631,6 +674,7 @@ local function UpdateFlingList()
             entry.BackgroundColor3 = Color3.fromRGB(50,50,55)
             Instance.new("UICorner", entry).CornerRadius = UDim.new(0,4)
             entry.Parent = FlingScroll
+
             local check = Instance.new("TextButton")
             check.Size = UDim2.new(0, 24, 0, 24)
             check.Position = UDim2.new(0, 3, 0.5, -12)
@@ -638,6 +682,7 @@ local function UpdateFlingList()
             check.Text = ""
             Instance.new("UICorner", check).CornerRadius = UDim.new(0,4)
             check.Parent = entry
+
             local mark = Instance.new("TextLabel")
             mark.Size = UDim2.new(1,0,1,0)
             mark.BackgroundTransparency = 1
@@ -647,6 +692,7 @@ local function UpdateFlingList()
             mark.Font = Enum.Font.SourceSansBold
             mark.Visible = false
             mark.Parent = check
+
             local nameLabel = Instance.new("TextLabel")
             nameLabel.Size = UDim2.new(1, -35, 1, 0)
             nameLabel.Position = UDim2.new(0, 30, 0, 0)
@@ -657,6 +703,7 @@ local function UpdateFlingList()
             nameLabel.TextSize = UIConfig.FontSize
             nameLabel.TextXAlignment = Enum.TextXAlignment.Left
             nameLabel.Parent = entry
+
             local click = Instance.new("TextButton")
             click.Size = UDim2.new(1,0,1,0)
             click.BackgroundTransparency = 1
@@ -715,7 +762,9 @@ CreateButton(FlingTab, "Start", function()
 end)
 CreateButton(FlingTab, "Stop", function() FlingActive = false; Notify("Fling", "Stopped", 2) end)
 
--- ФАРМ И ОСТАЛЬНОЕ
+-- ==========================================
+-- AUTO FARM + AUTO WIN + AUTO FLING
+-- ==========================================
 local RejoinConnection, FarmLoopRunning = false, nil
 
 local function TeleportToLobby()
@@ -1040,52 +1089,6 @@ CreateButton(WinTab, "Teleport Gun", function()
     if char and char:FindFirstChild("HumanoidRootPart") then char:PivotTo(oldCFrame) end
 end)
 
--- Ручной аим E/Q
-local aimConn
-local function StartAim(target)
-    if aimConn then aimConn:Disconnect() end
-    aimConn = RunService.RenderStepped:Connect(function()
-        if target and target.Character and target.Character:FindFirstChild("Head") and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Head") then
-            workspace.CurrentCamera.CFrame = CFrame.lookAt(LocalPlayer.Character.Head.Position, target.Character.Head.Position)
-        end
-    end)
-end
-UserInputService.InputBegan:Connect(function(input, gp)
-    if gp then return end
-    if input.KeyCode == Enum.KeyCode.E then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Knife") or p.Character:FindFirstChild("Knife")) then
-                _G.AimTarget = p; _G.AimKey = "E"; StartAim(p); return
-            end
-        end
-    elseif input.KeyCode == Enum.KeyCode.Q then
-        for _, p in pairs(Players:GetPlayers()) do
-            if p ~= LocalPlayer and p.Character and (p.Backpack:FindFirstChild("Gun") or p.Character:FindFirstChild("Gun")) then
-                _G.AimTarget = p; _G.AimKey = "Q"; StartAim(p); return
-            end
-        end
-    end
-end)
-UserInputService.InputEnded:Connect(function(input)
-    if (input.KeyCode == Enum.KeyCode.E and _G.AimKey=="E") or (input.KeyCode == Enum.KeyCode.Q and _G.AimKey=="Q") then
-        if aimConn then aimConn:Disconnect(); aimConn = nil end
-        _G.AimKey = nil; _G.AimTarget = nil
-    end
-end)
-
--- TP
-CreateButton(TPTab, "Lobby", TeleportToLobby)
-CreateButton(TPTab, "Map", TeleportToMap)
-CreateButton(TPTab, "Random Spawn", function()
-    local char = LocalPlayer.Character
-    if not char then return end
-    local spawns = workspace:FindFirstChild("Normal"):FindFirstChild("Spawns")
-    if spawns then
-        local pts = spawns:GetChildren()
-        if #pts > 0 then char:PivotTo(pts[math.random(#pts)].CFrame + Vector3.new(0,3,0)) end
-    end
-end)
-
 -- RTX
 CreateToggle(InfoTab, "RTX Graphics", false, function(s)
     _G.RTXEnabled = s
@@ -1100,9 +1103,9 @@ CreateToggle(InfoTab, "RTX Graphics", false, function(s)
     end
 end)
 
-CreateButton(InfoTab, "FPS 240", function() setfpscap(240); Notify("FPS", "Cap set to 240", 2) end)
+CreateButton(InfoTab, "FPS 240", function() pcall(setfpscap, 240); Notify("FPS", "Cap set to 240", 2) end)
 
--- Запуск
+-- Start
 pcall(function()
     if Tabs[1] then Tabs[1].Btn.MouseButton1Click:Fire() end
     Notify("ArtMM2 Hub", "Compact Loaded!", 5)
