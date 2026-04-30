@@ -1114,13 +1114,66 @@ CreateButton(WinTab, "Teleport to Gun (+ return)", function()
 end)
 
 -- ==========================================
--- SPAWN WEAPONS TAB (real item giver)
+-- SPAWN SKINS TAB (working skin changer)
 -- ==========================================
-local SpawnTab = CreateTab("Spawn")
+local SkinsList = {
+    Knife = {
+        "Default", "Chroma", "Candy", "Flames", "Ice", "Gold", "Laser",
+        "Ghost", "Shadow", "Mummy", "Void", "Spider", "Snowflake",
+        "Blood", "Neon", "Rainbow", "Galaxy", "Rune", "Glitch",
+        "Frostbite", "Darkbringer", "Lightbringer", "Eternal", "Elderwood",
+        "Cookie", "Candycane", "Gingerblade", "Icewing", "Batwing",
+        "Hallow's Edge", "Pumpking", "Ghostblade", "Alien", "Vampire's Edge",
+        "Ice Shard", "Fang", "Bone", "Reaper", "Deathshard"
+    },
+    Gun = {
+        "Default", "Chroma", "Laser", "Gold", "Ghost", "Shadow",
+        "Neon", "Rainbow", "Galaxy", "Rune", "Glitch", "Frostbite",
+        "Darkbringer", "Lightbringer", "Eternal", "Elderwood",
+        "Cookie", "Candycane", "Gingerscope", "Icewing", "Batwing",
+        "Hallow's Edge", "Pumpking", "Ghostblade", "Alien", "Vampire's Edge",
+        "Ice Shard", "Fang", "Bone", "Reaper", "Deathshard",
+        "America", "Blue", "Red", "Green", "Purple"
+    }
+}
 
--- Выбор оружия
-local SelectedWeapon = "Knife" -- "Knife" или "Gun"
+local SelectedSkinType = "Knife"
+local SelectedSkinName = "Default"
 
+local function ApplySkin()
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if not remotes then return Notify("Error", "Remotes not found", 2) end
+
+    local remoteName = (SelectedSkinType == "Knife") and "SetActiveKnifeSkin" or "SetActiveGunSkin"
+    local remote = remotes:FindFirstChild(remoteName)
+
+    if remote then
+        remote:FireServer(SelectedSkinName)
+        Notify("Skin", SelectedSkinType.." → "..SelectedSkinName, 2)
+    else
+        -- fallback: search in game directly
+        for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+            if v:IsA("RemoteEvent") and v.Name == remoteName then
+                v:FireServer(SelectedSkinName)
+                Notify("Skin", "Applied "..SelectedSkinName, 2)
+                return
+            end
+        end
+        Notify("Error", "Remote "..remoteName.." missing", 2)
+    end
+end
+
+-- UI for skin selection
+local SpawnLabel = Instance.new("TextLabel", SpawnTab)
+SpawnLabel.Size = UDim2.new(1, 0, 0, 25)
+SpawnLabel.BackgroundTransparency = 1
+SpawnLabel.Text = "Select Weapon & Skin"
+SpawnLabel.TextColor3 = Color3.fromRGB(255,255,255)
+SpawnLabel.Font = Enum.Font.GothamBold
+SpawnLabel.TextSize = 13
+SpawnLabel.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Toggle weapon type
 local WeaponBtn = Instance.new("TextButton", SpawnTab)
 WeaponBtn.Size = UDim2.new(1, 0, 0, UIConfig.ButtonHeight)
 WeaponBtn.BackgroundColor3 = Color3.fromRGB(40,40,45)
@@ -1131,75 +1184,54 @@ WeaponBtn.TextSize = UIConfig.FontSize
 Instance.new("UICorner", WeaponBtn).CornerRadius = UDim.new(0,6)
 
 WeaponBtn.MouseButton1Click:Connect(function()
-    SelectedWeapon = (SelectedWeapon == "Knife") and "Gun" or "Knife"
-    WeaponBtn.Text = "Weapon: "..SelectedWeapon
+    SelectedSkinType = (SelectedSkinType == "Knife") and "Gun" or "Knife"
+    WeaponBtn.Text = "Weapon: "..SelectedSkinType
+    UpdateSkinList()
 end)
 
--- Кнопка спавна
-local function GiveWeapon()
-    local char = LocalPlayer.Character
-    if not char then return Notify("Error", "No character", 2) end
-    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    if not remotes then return Notify("Error", "Remotes not found", 2) end
+-- Scrolling list of skins
+local SkinListFrame = Instance.new("Frame", SpawnTab)
+SkinListFrame.Size = UDim2.new(1, 0, 0, 120) -- height for mobile
+SkinListFrame.BackgroundColor3 = Color3.fromRGB(40,40,45)
+Instance.new("UICorner", SkinListFrame).CornerRadius = UDim.new(0,6)
 
-    if SelectedWeapon == "Gun" then
-        -- Найти пушку на карте и поднять её через PickUpGun (без фактического подбора)
-        local gunRemote = remotes:FindFirstChild("PickUpGun") or remotes:FindFirstChild("GunPickup")
-        if gunRemote then
-            -- Ищем любой Gun объект в Workspace
-            for _, v in pairs(workspace:GetDescendants()) do
-                if v.Name == "GunDrop" or v.Name == "Gun" then
-                    local gun = v:IsA("Model") and v.PrimaryPart or v
-                    if gun then
-                        gunRemote:FireServer(gun)
-                        Notify("Spawn", "Gun picked up!", 2)
-                        return
-                    end
-                end
-            end
-            -- Если нет на карте, пробуем альтернативный вызов
-            gunRemote:FireServer()
-            Notify("Spawn", "Gun requested", 2)
-        else
-            Notify("Error", "PickUpGun remote not found", 2)
-        end
+local SkinScroll = Instance.new("ScrollingFrame", SkinListFrame)
+SkinScroll.Size = UDim2.new(1, -10, 1, -10)
+SkinScroll.Position = UDim2.new(0,5,0,5)
+SkinScroll.BackgroundTransparency = 1
+SkinScroll.ScrollBarThickness = UIConfig.ScrollThickness
+SkinScroll.CanvasSize = UDim2.new(0,0,0,0)
+SkinScroll.BorderSizePixel = 0
 
-    else -- Knife
-        -- В MM2 нож обычно не подбирается, но можно дать через SetActiveKnifeSkin + GiveKnife
-        local knifeRemote = remotes:FindFirstChild("GiveKnife") or remotes:FindFirstChild("Knife Pickup")
-        if knifeRemote then
-            knifeRemote:FireServer()
-            Notify("Spawn", "Knife given", 2)
-        else
-            -- Альтернатива: попробуем просто выдать скин, что иногда активирует нож
-            local skinRemote = remotes:FindFirstChild("SetActiveKnifeSkin")
-            if skinRemote then
-                skinRemote:FireServer("Default")
-                Notify("Spawn", "Knife activated (via skin)", 2)
-            else
-                Notify("Error", "No knife remote found", 2)
-            end
-        end
+local SkinLayout = Instance.new("UIListLayout", SkinScroll)
+SkinLayout.Padding = UDim.new(0,4)
+SkinLayout.SortOrder = Enum.SortOrder.LayoutOrder
+
+function UpdateSkinList()
+    for _, child in pairs(SkinScroll:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
     end
+    local skins = SkinsList[SelectedSkinType]
+    for _, skinName in pairs(skins) do
+        local skinBtn = Instance.new("TextButton", SkinScroll)
+        skinBtn.Size = UDim2.new(1,0,0,28)
+        skinBtn.BackgroundColor3 = (skinName == SelectedSkinName) and Color3.fromRGB(120,81,255) or Color3.fromRGB(50,50,55)
+        skinBtn.Text = skinName
+        skinBtn.TextColor3 = Color3.fromRGB(255,255,255)
+        skinBtn.Font = Enum.Font.Gotham
+        skinBtn.TextSize = 13
+        Instance.new("UICorner", skinBtn).CornerRadius = UDim.new(0,4)
+        skinBtn.MouseButton1Click:Connect(function()
+            SelectedSkinName = skinName
+            UpdateSkinList()
+        end)
+    end
+    SkinScroll.CanvasSize = UDim2.new(0,0,0,SkinLayout.AbsoluteContentSize.Y + 5)
 end
 
-CreateButton(SpawnTab, "Give Weapon", GiveWeapon)
+UpdateSkinList()
 
--- RTX toggle
-CreateToggle(InfoTab, "RTX Graphics", false, function(s)
-    _G.RTXEnabled = s
-    if s then
-        Lighting.Brightness = 2.5; Lighting.Ambient = Color3.fromRGB(180,180,200); Lighting.OutdoorAmbient = Color3.fromRGB(200,200,220)
-        Lighting.ExposureCompensation = 0.3
-        local bloom = Instance.new("BloomEffect"); bloom.Intensity = 0.8; bloom.Size = 24; bloom.Threshold = 0.9; bloom.Parent = Lighting
-        local cc = Instance.new("ColorCorrectionEffect"); cc.Brightness = 0.05; cc.Contrast = 0.1; cc.Saturation = 0.2; cc.TintColor = Color3.fromRGB(255,240,230); cc.Parent = Lighting
-    else
-        Lighting.Brightness = 2; Lighting.Ambient = Color3.fromRGB(127,127,127); Lighting.OutdoorAmbient = Color3.fromRGB(127,127,127); Lighting.ExposureCompensation = 0
-        for _, v in pairs(Lighting:GetChildren()) do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") then v:Destroy() end end
-    end
-end)
-
-CreateButton(InfoTab, "FPS Unlocker (240)", function() pcall(setfpscap, 240); Notify("FPS", "Cap set to 240", 2) end)
+CreateButton(SpawnTab, "Apply Skin", ApplySkin)
 
 -- Start
 pcall(function()
