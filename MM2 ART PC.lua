@@ -1,4 +1,4 @@
--- ArtMM2 Hub | PC Full Version (Fixed)
+-- ArtMM2 Hub | PC Full Version (No Spawn)
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
@@ -52,7 +52,6 @@ local function Notify(title, text, duration)
 
     Corner.CornerRadius = UDim.new(0, 8)
     Corner.Parent = NotifFrame
-
     Stroke.Color = Color3.fromRGB(120, 81, 255)
     Stroke.Thickness = 2
     Stroke.Parent = NotifFrame
@@ -343,7 +342,7 @@ local function CreateSlider(parent, text, min, max, default, callback)
 end
 
 -- ==========================================
--- INIT TABS (including Spawn)
+-- INIT TABS
 -- ==========================================
 local InfoTab = CreateTab("Info")
 local PlayerTab = CreateTab("Player")
@@ -352,7 +351,6 @@ local EspTab = CreateTab("ESP")
 local WinTab = CreateTab("Win")
 local TargetTab = CreateTab("Target")
 local FlingTab = CreateTab("Fling")
-local SpawnTab = CreateTab("Spawn")
 
 -- INFO TAB
 local Avatar = Instance.new("ImageLabel", InfoTab)
@@ -403,6 +401,19 @@ CreateToggle(InfoTab, "Show Role On Round Start", false, function(s)
     _G.ShowRoleOnRoundStart = s
     if s then lastRoleNotified = nil; CheckAndNotifyRole() end
 end)
+CreateToggle(InfoTab, "RTX Graphics", false, function(s)
+    _G.RTXEnabled = s
+    if s then
+        Lighting.Brightness = 2.5; Lighting.Ambient = Color3.fromRGB(180,180,200); Lighting.OutdoorAmbient = Color3.fromRGB(200,200,220)
+        Lighting.ExposureCompensation = 0.3
+        local bloom = Instance.new("BloomEffect"); bloom.Intensity = 0.8; bloom.Size = 24; bloom.Threshold = 0.9; bloom.Parent = Lighting
+        local cc = Instance.new("ColorCorrectionEffect"); cc.Brightness = 0.05; cc.Contrast = 0.1; cc.Saturation = 0.2; cc.TintColor = Color3.fromRGB(255,240,230); cc.Parent = Lighting
+    else
+        Lighting.Brightness = 2; Lighting.Ambient = Color3.fromRGB(127,127,127); Lighting.OutdoorAmbient = Color3.fromRGB(127,127,127); Lighting.ExposureCompensation = 0
+        for _, v in pairs(Lighting:GetChildren()) do if v:IsA("BloomEffect") or v:IsA("ColorCorrectionEffect") then v:Destroy() end end
+    end
+end)
+CreateButton(InfoTab, "FPS Unlocker (240)", function() pcall(setfpscap, 240); Notify("FPS", "Cap set to 240", 2) end)
 
 -- PLAYER TAB
 CreateSlider(PlayerTab, "WalkSpeed", 16, 150, 16, function(v) if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then LocalPlayer.Character.Humanoid.WalkSpeed = v end end)
@@ -512,7 +523,7 @@ local function AutoAimLoop()
         
         local cam = workspace.CurrentCamera
         if target and target.Character and target.Character:FindFirstChild("Head") then
-            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, target.Character.Head.Position) -- instant snap
+            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, target.Character.Head.Position)
             cam.FieldOfView = _G.AutoShoot and 30 or 70
             if _G.AutoShoot and LocalPlayer.Character then
                 local gun = LocalPlayer.Character:FindFirstChild("Gun") or LocalPlayer.Backpack:FindFirstChild("Gun")
@@ -543,7 +554,7 @@ local function StartAim(target)
     aimConn = RunService.RenderStepped:Connect(function()
         local cam = workspace.CurrentCamera
         if target and target.Character and target.Character:FindFirstChild("Head") then
-            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, target.Character.Head.Position) -- instant
+            cam.CFrame = CFrame.lookAt(cam.CFrame.Position, target.Character.Head.Position)
         end
     end)
 end
@@ -572,13 +583,12 @@ UserInputService.InputEnded:Connect(function(input)
     end
 end)
 
--- FLING TAB (fixed fling function)
+-- FLING TAB
 local FlingActive = false
 local SelectedFlingTargets = {}
 local FlingCheckboxes = {}
 local OldPos, FPDH = nil, workspace.FallenPartsDestroyHeight
 
--- Improved fling using simpler approach
 local function SkidFling(targetPlayer)
     local char = LocalPlayer.Character
     if not char or not char:FindFirstChild("Humanoid") then return end
@@ -607,7 +617,6 @@ local function SkidFling(targetPlayer)
     workspace.CurrentCamera.CameraSubject = tHead or handle or tHum
     workspace.FallenPartsDestroyHeight = 0/0
 
-    -- Simple body velocity fling
     local bv = Instance.new("BodyVelocity")
     bv.Parent = root
     bv.MaxForce = Vector3.new(1,1,1) * 1e9
@@ -622,11 +631,9 @@ local function SkidFling(targetPlayer)
         if not tChar or not tChar:FindFirstChildOfClass("Humanoid") then break end
         if not targetPart.Parent then break end
 
-        -- Position right on top of target part with offset
         root.CFrame = targetPart.CFrame * CFrame.new(0, 1.5, 0) * CFrame.Angles(0, 0, math.rad(90))
         char:SetPrimaryPartCFrame(root.CFrame)
 
-        -- Apply large velocity
         root.Velocity = Vector3.new(0, 9e7 * power, 0) + Vector3.new((math.random()-0.5)*1e6, 0, (math.random()-0.5)*1e6)
         root.RotVelocity = Vector3.new(9e8, 9e8, 9e8) * power
 
@@ -642,7 +649,6 @@ local function SkidFling(targetPlayer)
         part.CanCollide = false
     end
 
-    -- Return to original position
     if OldPos then
         repeat
             root.CFrame = OldPos * CFrame.new(0,0.5,0)
@@ -771,7 +777,7 @@ end)
 CreateButton(FlingTab, "Stop Fling", function() FlingActive = false; Notify("Fling", "Stopped", 2) end)
 
 -- ==========================================
--- AUTO FARM (improved collection + murderer fling)
+-- AUTO FARM + AUTO WIN + AUTO FLING
 -- ==========================================
 local RejoinConnection, FarmLoopRunning = false, nil
 
@@ -807,7 +813,6 @@ local function RejoinServer()
     pcall(function() TeleportService:Teleport(game.PlaceId, LocalPlayer) end)
 end
 
--- Fast local collection
 local function CollectNearbyCoins(root, allCoins, range)
     local collected = false
     for _, coin in pairs(allCoins) do
@@ -868,14 +873,12 @@ local function FarmCoins()
         return
     end
 
-    -- Quick local grab if multiple coins nearby
     local nearbyRange = 15
     if #coins > 1 then
         local done = CollectNearbyCoins(root, coins, nearbyRange)
         if done then return end
     end
 
-    -- Fly to the closest coin
     table.sort(coins, function(a,b) return (root.Position - a.Position).Magnitude < (root.Position - b.Position).Magnitude end)
     FlyToCoin(coins[1])
 end
@@ -995,9 +998,7 @@ CreateButton(FarmTab, "Teleport to Map", TeleportToMap)
 CreateButton(FarmTab, "Teleport to Lobby", TeleportToLobby)
 CreateButton(FarmTab, "Reset Coin Counter", function() _G.CollectedCoins = 0 end)
 
--- ==========================================
 -- ESP TAB
--- ==========================================
 CreateToggle(EspTab, "Enable Roles ESP", false, function(s)
     _G.ESP = s
     if not s then for _, p in pairs(Players:GetPlayers()) do if p.Character and p.Character:FindFirstChild("ArtESP") then p.Character.ArtESP:Destroy() end end end
@@ -1020,9 +1021,7 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
--- ==========================================
 -- WIN TAB
--- ==========================================
 CreateButton(WinTab, "Sheriff: Shoot Murderer", function()
     local char = LocalPlayer.Character
     if not char then return end
@@ -1112,58 +1111,6 @@ CreateButton(WinTab, "Teleport to Gun (+ return)", function()
         char:PivotTo(oldCFrame)
     end
 end)
-
--- ==========================================
--- GODLY CASE OPENER (100% Chroma/Godly)
--- ==========================================
-local function OpenGodlyCase()
-    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    if not remotes then
-        -- попытка найти в других папках
-        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
-            if obj:IsA("RemoteEvent") and obj.Name == "OpenCrate" then
-                remotes = obj.Parent
-                break
-            end
-        end
-        if not remotes then return Notify("Error", "Remotes not found", 2) end
-    end
-
-    -- Ищем Remote для открытия кейса
-    local openRemote
-    for _, v in pairs(remotes:GetChildren()) do
-        if v:IsA("RemoteEvent") and (v.Name == "OpenCrate" or v.Name == "CrateOpen" or v.Name == "Unbox") then
-            openRemote = v
-            break
-        end
-    end
-    if not openRemote then
-        for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-            if v:IsA("RemoteEvent") and (v.Name == "OpenCrate" or v.Name == "CrateOpen" or v.Name == "Unbox") then
-                openRemote = v
-                break
-            end
-        end
-    end
-    if not openRemote then return Notify("Error", "Case remote not found", 2) end
-
-    -- Пробуем отправить имя хромы/годли напрямую
-    local godlySkins = {"Chroma", "Godly", "Darkbringer", "Lightbringer", "Eternal", "Elderwood", "Icewing", "Batwing", "Pumpking", "Hallow's Edge", "Gingerscope"}
-    local chosen = godlySkins[math.random(#godlySkins)]  -- случайный годли, можешь задать сам
-
-    -- Некоторые сервера принимают строку имени предмета, другие – индекс
-    -- Попробуем оба варианта
-    pcall(function()
-        openRemote:FireServer(chosen, true)   -- string, forced?
-    end)
-    pcall(function()
-        openRemote:FireServer(1)              -- индекс (1 = Chroma)
-    end)
-
-    Notify("CASE", "Opened! Received "..chosen, 3)
-end
-
-CreateButton(SpawnTab, "Open Godly Case", OpenGodlyCase)
 
 -- Start
 pcall(function()
