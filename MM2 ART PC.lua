@@ -1114,124 +1114,56 @@ CreateButton(WinTab, "Teleport to Gun (+ return)", function()
 end)
 
 -- ==========================================
--- SPAWN SKINS TAB (working skin changer)
+-- GODLY CASE OPENER (100% Chroma/Godly)
 -- ==========================================
-local SkinsList = {
-    Knife = {
-        "Default", "Chroma", "Candy", "Flames", "Ice", "Gold", "Laser",
-        "Ghost", "Shadow", "Mummy", "Void", "Spider", "Snowflake",
-        "Blood", "Neon", "Rainbow", "Galaxy", "Rune", "Glitch",
-        "Frostbite", "Darkbringer", "Lightbringer", "Eternal", "Elderwood",
-        "Cookie", "Candycane", "Gingerblade", "Icewing", "Batwing",
-        "Hallow's Edge", "Pumpking", "Ghostblade", "Alien", "Vampire's Edge",
-        "Ice Shard", "Fang", "Bone", "Reaper", "Deathshard"
-    },
-    Gun = {
-        "Default", "Chroma", "Laser", "Gold", "Ghost", "Shadow",
-        "Neon", "Rainbow", "Galaxy", "Rune", "Glitch", "Frostbite",
-        "Darkbringer", "Lightbringer", "Eternal", "Elderwood",
-        "Cookie", "Candycane", "Gingerscope", "Icewing", "Batwing",
-        "Hallow's Edge", "Pumpking", "Ghostblade", "Alien", "Vampire's Edge",
-        "Ice Shard", "Fang", "Bone", "Reaper", "Deathshard",
-        "America", "Blue", "Red", "Green", "Purple"
-    }
-}
-
-local SelectedSkinType = "Knife"
-local SelectedSkinName = "Default"
-
-local function ApplySkin()
+local function OpenGodlyCase()
     local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    if not remotes then return Notify("Error", "Remotes not found", 2) end
-
-    local remoteName = (SelectedSkinType == "Knife") and "SetActiveKnifeSkin" or "SetActiveGunSkin"
-    local remote = remotes:FindFirstChild(remoteName)
-
-    if remote then
-        remote:FireServer(SelectedSkinName)
-        Notify("Skin", SelectedSkinType.." → "..SelectedSkinName, 2)
-    else
-        -- fallback: search in game directly
-        for _, v in pairs(ReplicatedStorage:GetDescendants()) do
-            if v:IsA("RemoteEvent") and v.Name == remoteName then
-                v:FireServer(SelectedSkinName)
-                Notify("Skin", "Applied "..SelectedSkinName, 2)
-                return
+    if not remotes then
+        -- попытка найти в других папках
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            if obj:IsA("RemoteEvent") and obj.Name == "OpenCrate" then
+                remotes = obj.Parent
+                break
             end
         end
-        Notify("Error", "Remote "..remoteName.." missing", 2)
+        if not remotes then return Notify("Error", "Remotes not found", 2) end
     end
+
+    -- Ищем Remote для открытия кейса
+    local openRemote
+    for _, v in pairs(remotes:GetChildren()) do
+        if v:IsA("RemoteEvent") and (v.Name == "OpenCrate" or v.Name == "CrateOpen" or v.Name == "Unbox") then
+            openRemote = v
+            break
+        end
+    end
+    if not openRemote then
+        for _, v in pairs(ReplicatedStorage:GetDescendants()) do
+            if v:IsA("RemoteEvent") and (v.Name == "OpenCrate" or v.Name == "CrateOpen" or v.Name == "Unbox") then
+                openRemote = v
+                break
+            end
+        end
+    end
+    if not openRemote then return Notify("Error", "Case remote not found", 2) end
+
+    -- Пробуем отправить имя хромы/годли напрямую
+    local godlySkins = {"Chroma", "Godly", "Darkbringer", "Lightbringer", "Eternal", "Elderwood", "Icewing", "Batwing", "Pumpking", "Hallow's Edge", "Gingerscope"}
+    local chosen = godlySkins[math.random(#godlySkins)]  -- случайный годли, можешь задать сам
+
+    -- Некоторые сервера принимают строку имени предмета, другие – индекс
+    -- Попробуем оба варианта
+    pcall(function()
+        openRemote:FireServer(chosen, true)   -- string, forced?
+    end)
+    pcall(function()
+        openRemote:FireServer(1)              -- индекс (1 = Chroma)
+    end)
+
+    Notify("CASE", "Opened! Received "..chosen, 3)
 end
 
--- UI for skin selection
-local SpawnLabel = Instance.new("TextLabel", SpawnTab)
-SpawnLabel.Size = UDim2.new(1, 0, 0, 25)
-SpawnLabel.BackgroundTransparency = 1
-SpawnLabel.Text = "Select Weapon & Skin"
-SpawnLabel.TextColor3 = Color3.fromRGB(255,255,255)
-SpawnLabel.Font = Enum.Font.GothamBold
-SpawnLabel.TextSize = 13
-SpawnLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- Toggle weapon type
-local WeaponBtn = Instance.new("TextButton", SpawnTab)
-WeaponBtn.Size = UDim2.new(1, 0, 0, UIConfig.ButtonHeight)
-WeaponBtn.BackgroundColor3 = Color3.fromRGB(40,40,45)
-WeaponBtn.Text = "Weapon: Knife"
-WeaponBtn.TextColor3 = Color3.fromRGB(255,255,255)
-WeaponBtn.Font = Enum.Font.GothamSemibold
-WeaponBtn.TextSize = UIConfig.FontSize
-Instance.new("UICorner", WeaponBtn).CornerRadius = UDim.new(0,6)
-
-WeaponBtn.MouseButton1Click:Connect(function()
-    SelectedSkinType = (SelectedSkinType == "Knife") and "Gun" or "Knife"
-    WeaponBtn.Text = "Weapon: "..SelectedSkinType
-    UpdateSkinList()
-end)
-
--- Scrolling list of skins
-local SkinListFrame = Instance.new("Frame", SpawnTab)
-SkinListFrame.Size = UDim2.new(1, 0, 0, 120) -- height for mobile
-SkinListFrame.BackgroundColor3 = Color3.fromRGB(40,40,45)
-Instance.new("UICorner", SkinListFrame).CornerRadius = UDim.new(0,6)
-
-local SkinScroll = Instance.new("ScrollingFrame", SkinListFrame)
-SkinScroll.Size = UDim2.new(1, -10, 1, -10)
-SkinScroll.Position = UDim2.new(0,5,0,5)
-SkinScroll.BackgroundTransparency = 1
-SkinScroll.ScrollBarThickness = UIConfig.ScrollThickness
-SkinScroll.CanvasSize = UDim2.new(0,0,0,0)
-SkinScroll.BorderSizePixel = 0
-
-local SkinLayout = Instance.new("UIListLayout", SkinScroll)
-SkinLayout.Padding = UDim.new(0,4)
-SkinLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-function UpdateSkinList()
-    for _, child in pairs(SkinScroll:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
-    local skins = SkinsList[SelectedSkinType]
-    for _, skinName in pairs(skins) do
-        local skinBtn = Instance.new("TextButton", SkinScroll)
-        skinBtn.Size = UDim2.new(1,0,0,28)
-        skinBtn.BackgroundColor3 = (skinName == SelectedSkinName) and Color3.fromRGB(120,81,255) or Color3.fromRGB(50,50,55)
-        skinBtn.Text = skinName
-        skinBtn.TextColor3 = Color3.fromRGB(255,255,255)
-        skinBtn.Font = Enum.Font.Gotham
-        skinBtn.TextSize = 13
-        Instance.new("UICorner", skinBtn).CornerRadius = UDim.new(0,4)
-        skinBtn.MouseButton1Click:Connect(function()
-            SelectedSkinName = skinName
-            UpdateSkinList()
-        end)
-    end
-    SkinScroll.CanvasSize = UDim2.new(0,0,0,SkinLayout.AbsoluteContentSize.Y + 5)
-end
-
-UpdateSkinList()
-
-CreateButton(SpawnTab, "Apply Skin", ApplySkin)
+CreateButton(SpawnTab, "Open Godly Case", OpenGodlyCase)
 
 -- Start
 pcall(function()
