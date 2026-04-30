@@ -1124,50 +1124,13 @@ CreateButton(WinTab, "Teleport to Gun (+ return)", function()
 end)
 
 -- ==========================================
--- SPAWN SKINS TAB
+-- SPAWN WEAPONS TAB (real item giver)
 -- ==========================================
-local SkinsList = {
-    Knife = {"Default", "Chroma", "Candy", "Flames", "Ice", "Gold", "Laser", "Ghost", "Shadow", "Mummy", "Void", "Spider", "Snowflake", "Blood", "Neon", "Rainbow"},
-    Gun = {"Default", "Chroma", "Candy", "Flames", "Ice", "Gold", "Laser", "Ghost", "Shadow", "Mummy", "Void", "Spider", "Snowflake", "Neon", "Rainbow"}
-}
+local SpawnTab = CreateTab("Spawn")
 
-local SelectedSkinType = "Knife"
-local SelectedSkinName = "Default"
+-- Выбор оружия
+local SelectedWeapon = "Knife" -- "Knife" или "Gun"
 
-local function ApplySkin()
-    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
-    if not remotes then return Notify("Error", "Remotes not found", 2) end
-    
-    if SelectedSkinType == "Knife" then
-        local remote = remotes:FindFirstChild("SetActiveKnifeSkin")
-        if remote then
-            remote:FireServer(SelectedSkinName)
-            Notify("Skin", "Knife skin: "..SelectedSkinName, 2)
-        else
-            Notify("Error", "Knife remote missing", 2)
-        end
-    else
-        local remote = remotes:FindFirstChild("SetActiveGunSkin")
-        if remote then
-            remote:FireServer(SelectedSkinName)
-            Notify("Skin", "Gun skin: "..SelectedSkinName, 2)
-        else
-            Notify("Error", "Gun remote missing", 2)
-        end
-    end
-end
-
--- UI elements for Spawn tab
-local SpawnLabel = Instance.new("TextLabel", SpawnTab)
-SpawnLabel.Size = UDim2.new(1, 0, 0, 25)
-SpawnLabel.BackgroundTransparency = 1
-SpawnLabel.Text = "Select Weapon & Skin"
-SpawnLabel.TextColor3 = Color3.fromRGB(255,255,255)
-SpawnLabel.Font = Enum.Font.GothamBold
-SpawnLabel.TextSize = UIConfig.FontSize
-SpawnLabel.TextXAlignment = Enum.TextXAlignment.Left
-
--- Dropdown for weapon type
 local WeaponBtn = Instance.new("TextButton", SpawnTab)
 WeaponBtn.Size = UDim2.new(1, 0, 0, UIConfig.ButtonHeight)
 WeaponBtn.BackgroundColor3 = Color3.fromRGB(40,40,45)
@@ -1177,57 +1140,60 @@ WeaponBtn.Font = Enum.Font.GothamSemibold
 WeaponBtn.TextSize = UIConfig.FontSize
 Instance.new("UICorner", WeaponBtn).CornerRadius = UDim.new(0,6)
 
-local function ToggleWeaponType()
-    SelectedSkinType = (SelectedSkinType == "Knife") and "Gun" or "Knife"
-    WeaponBtn.Text = "Weapon: "..SelectedSkinType
-    UpdateSkinList()
+WeaponBtn.MouseButton1Click:Connect(function()
+    SelectedWeapon = (SelectedWeapon == "Knife") and "Gun" or "Knife"
+    WeaponBtn.Text = "Weapon: "..SelectedWeapon
+end)
+
+-- Кнопка спавна
+local function GiveWeapon()
+    local char = LocalPlayer.Character
+    if not char then return Notify("Error", "No character", 2) end
+    local remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if not remotes then return Notify("Error", "Remotes not found", 2) end
+
+    if SelectedWeapon == "Gun" then
+        -- Найти пушку на карте и поднять её через PickUpGun (без фактического подбора)
+        local gunRemote = remotes:FindFirstChild("PickUpGun") or remotes:FindFirstChild("GunPickup")
+        if gunRemote then
+            -- Ищем любой Gun объект в Workspace
+            for _, v in pairs(workspace:GetDescendants()) do
+                if v.Name == "GunDrop" or v.Name == "Gun" then
+                    local gun = v:IsA("Model") and v.PrimaryPart or v
+                    if gun then
+                        gunRemote:FireServer(gun)
+                        Notify("Spawn", "Gun picked up!", 2)
+                        return
+                    end
+                end
+            end
+            -- Если нет на карте, пробуем альтернативный вызов
+            gunRemote:FireServer()
+            Notify("Spawn", "Gun requested", 2)
+        else
+            Notify("Error", "PickUpGun remote not found", 2)
+        end
+
+    else -- Knife
+        -- В MM2 нож обычно не подбирается, но можно дать через SetActiveKnifeSkin + GiveKnife
+        local knifeRemote = remotes:FindFirstChild("GiveKnife") or remotes:FindFirstChild("Knife Pickup")
+        if knifeRemote then
+            knifeRemote:FireServer()
+            Notify("Spawn", "Knife given", 2)
+        else
+            -- Альтернатива: попробуем просто выдать скин, что иногда активирует нож
+            local skinRemote = remotes:FindFirstChild("SetActiveKnifeSkin")
+            if skinRemote then
+                skinRemote:FireServer("Default")
+                Notify("Spawn", "Knife activated (via skin)", 2)
+            else
+                Notify("Error", "No knife remote found", 2)
+            end
+        end
+    end
 end
 
-WeaponBtn.MouseButton1Click:Connect(ToggleWeaponType)
-
--- Skin list
-local SkinListFrame = Instance.new("Frame", SpawnTab)
-SkinListFrame.Size = UDim2.new(1, 0, 0, 120)
-SkinListFrame.BackgroundColor3 = Color3.fromRGB(40,40,45)
-Instance.new("UICorner", SkinListFrame).CornerRadius = UDim.new(0,6)
-
-local SkinScroll = Instance.new("ScrollingFrame", SkinListFrame)
-SkinScroll.Size = UDim2.new(1, -10, 1, -10)
-SkinScroll.Position = UDim2.new(0,5,0,5)
-SkinScroll.BackgroundTransparency = 1
-SkinScroll.ScrollBarThickness = UIConfig.ScrollThickness
-SkinScroll.CanvasSize = UDim2.new(0,0,0,0)
-SkinScroll.BorderSizePixel = 0
-
-local SkinLayout = Instance.new("UIListLayout", SkinScroll)
-SkinLayout.Padding = UDim.new(0,4)
-SkinLayout.SortOrder = Enum.SortOrder.LayoutOrder
-
-local function UpdateSkinList()
-    for _, child in pairs(SkinScroll:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
-    local skins = SkinsList[SelectedSkinType]
-    for _, skinName in pairs(skins) do
-        local skinBtn = Instance.new("TextButton", SkinScroll)
-        skinBtn.Size = UDim2.new(1,0,0,28)
-        skinBtn.BackgroundColor3 = (skinName == SelectedSkinName) and Color3.fromRGB(120,81,255) or Color3.fromRGB(50,50,55)
-        skinBtn.Text = skinName
-        skinBtn.TextColor3 = Color3.fromRGB(255,255,255)
-        skinBtn.Font = Enum.Font.Gotham
-        skinBtn.TextSize = UIConfig.FontSize
-        Instance.new("UICorner", skinBtn).CornerRadius = UDim.new(0,4)
-        skinBtn.MouseButton1Click:Connect(function()
-            SelectedSkinName = skinName
-            UpdateSkinList()
-        end)
-    end
-    SkinScroll.CanvasSize = UDim2.new(0,0,0,SkinLayout.AbsoluteContentSize.Y + 5)
-end
-
-UpdateSkinList()
-
-CreateButton(SpawnTab, "Give Skin", ApplySkin)
+CreateButton(SpawnTab, "Give Weapon", GiveWeapon)
 
 -- RTX toggle
 CreateToggle(InfoTab, "RTX Graphics", false, function(s)
